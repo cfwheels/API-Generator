@@ -99,9 +99,12 @@
 
 <cfcomponent>
 
+	<!--- include main wheels functions in tests by default --->
+	<cfinclude template="/wheelsMapping/global/functions.cfm">
+
 	<cfset variables.WHEELS_TESTS_BASE_COMPONENT_PATH = "">
-	<cfset global = {}>
-	
+	<cfset variables.ROOT_TEST_PATH = "">
+
 	<!---
 		Called from a test function.  If expression evaluates to false,
 		record a failure against the test.
@@ -201,14 +204,38 @@
 	<cffunction name="halt" returntype="Any" output="false" hint="used to dump an expression and halt testing. Useful when you want to see what an expression will output first so you can write tests for it.">
 		<cfargument name="halt" type="boolean" required="true" hint="should we halt. true will halt and dump output. false will just return so tests can continue">
 		<cfargument name="expression" type="string" required="true" hint="the expression you want to see output for">
+		<cfset var attributeArgs = {}>
 
 		<cfif not arguments.halt>
 			<cfreturn>
 		</cfif>
 
-		<cfdump var="#evaluate(arguments.expression)#"><cfabort>
+		<cfset attributeArgs["var"] = "#evaluate(arguments.expression)#">
+
+		<cfset structdelete(arguments, "halt")>
+		<cfset structdelete(arguments, "expression")>
+		<cfset structappend(attributeArgs, arguments, true)>
+
+		<cfdump attributeCollection="#attributeArgs#"><cfabort>
 	</cffunction>
 	
+	<cffunction name="debug" returntype="Any" output="false" hint="used to dump an expression and view the results later.">
+		<cfargument name="label" type="string" required="true" hint="label for the debug output">
+		<cfargument name="expression" type="string" required="true" hint="the expression you want to see output for">
+		<cfset var attributeArgs = {}>
+		<cfset var dump = "">
+
+		<cfset attributeArgs["var"] = "#evaluate(arguments.expression)#">
+
+		<cfset structdelete(arguments, "halt")>
+		<cfset structdelete(arguments, "expression")>
+		<cfset structappend(attributeArgs, arguments, true)>
+		<cfsavecontent variable="dump">
+		<cfdump attributeCollection="#attributeArgs#">
+		</cfsavecontent>
+		<cfset request["_testdebug"][arguments.label] = dump>
+	</cffunction>
+
 	<cffunction name="raised" returntype="string" output="false" hint="catches an raised error and returns the error type. great if you want to test that a certain exception will be raised.">
 		<cfargument type="string" name="expression" required="true">
 		<cftry>
@@ -218,24 +245,6 @@
 			</cfcatch>
 		</cftry>
 		<cfreturn "">
-	</cffunction>
-
-	<cffunction name="loadModels" hint="allows you to load all or specific models into the test case">
-		<cfargument name="models" type="string" required="false" default="" hint="a comma delimited list of the model you want to load. leave blank to load all models.">
-		<cfset var loc = {}>
-		
-		<cfif not structkeyexists(variables, "model")>
-			<cfinclude template="/wheelsMapping/global/functions.cfm">
-		</cfif>
-		
-		<cfif !len(arguments.models)>
-			<cfdirectory action="list" directory="#expandpath(application.wheels.modelPath)#" name="loc.models" filter="*.cfc" type="file">
-			<cfset arguments.models = valuelist(loc.models.name)>
-		</cfif>
-		
-		<cfloop list="#arguments.models#" index="loc.model">
-			<cfset global[singularize(listfirst(loc.model, "."))] = model(listfirst(loc.model, "."))>
-		</cfloop>
 	</cffunction>
 
 	<!---
@@ -284,6 +293,7 @@
 	--->
 	<cffunction name="$runTest" returntype="boolean" output="true">
 		<cfargument name="resultKey" type="string" required="false" default="test">
+		<cfargument name="testname" type="string" required="false" default="">
 
 		<cfset var key = "">
 		<cfset var keyList = "">
@@ -320,38 +330,25 @@
 		--->
 		<cfset keyList = listSort(structKeyList(this), "textnocase", "asc")>
 
-		<cfif structKeyExists(this, "_setup")>
-			<cfset _setup()>
-		</cfif>
-
 		<cfloop list="#keyList#" index="key">
 
-			<cfif left(key, 4) eq "test" and isCustomFunction(this[key])>
+			<cfif (left(key, 4) eq "test" and isCustomFunction(this[key])) and (!len(arguments.testname) or (len(arguments.testname) and arguments.testname eq key))>
+
+				<cfset time = getTickCount()>
+
+				<cfif structKeyExists(this, "setup")>
+					<cfset setup()>
+				</cfif>
 
 				<cftry>
-				
-					<cfset time = getTickCount()>
-
-					<cfset loc = duplicate(global)>
-
-					<cfif structKeyExists(this, "setup")>
-						<cfset setup()>
-					</cfif>
 
 					<cfset message = "">
 					<cfinvoke method="#key#">
 					<cfset status = "Success">
 					<cfset request[resultkey].numSuccesses = request[resultkey].numSuccesses + 1>
 
-					<cfif structKeyExists(this, "teardown")>
-						<cfset teardown()>
-					</cfif>
-
-					<cfset time = getTickCount() - time>
-
 				<cfcatch type="any">
 
-					<cfset time = getTickCount() - time>
 					<cfset message = cfcatch.message>
 
 					<cfif cfcatch.ErrorCode eq "__FAIL__">
@@ -380,6 +377,12 @@
 				</cfcatch>
 				</cftry>
 
+				<cfif structKeyExists(this, "teardown")>
+					<cfset teardown()>
+				</cfif>
+
+				<cfset time = getTickCount() - time>
+
 				<!---
 					Record test results
 				--->
@@ -397,10 +400,6 @@
 			</cfif>
 
 		</cfloop>
-
-		<cfif structKeyExists(this, "_teardown")>
-			<cfset _teardown()>
-		</cfif>
 
 		<cfset result = structNew()>
 		<cfset result.testCase = testCase>
@@ -446,79 +445,30 @@
 							request scope, defaults to "test"
 		@returns			HTML formatted test results
 	--->
-	<cffunction name="$HTMLFormatTestResults" returntype="string" output="false">
+	<cffunction name="$results" returntype="any" output="false">
 		<cfargument name="resultKey" type="string" required="false" default="test">
-
-		<cfset var testIndex = "">
-		<cfset var newline = chr(10) & chr(13)>
-
-		<cfif not structkeyexists(request, resultkey)>
-
-			<cfsavecontent variable="result">
-			<cfoutput>
-			<p>No tests found.</p>
-			</cfoutput>
-			</cfsavecontent>
-
-		<cfelse>
-
-			<cfsavecontent variable="result">
-			<cfoutput>
-			<style type="text/css">
-			.failed {color:red;font-weight:bold}
-			.success {color:green;font-weight:bold}
-			table.testing {border:0; margin-bottom:15px;}
-			table.testing td, table.testing th {padding:2px 20px 2px 2px;text-align:left;vertical-align:top;font-size:14px;}
-			table.testing td.numeric {text-align:right;}
-			</style>
-			<table class="testing">
-				<tr><th class="<cfif request[resultkey].ok>success<cfelse>failed</cfif>">Status</th><td class="numeric<cfif request[resultkey].ok> success<cfelse> failed</cfif>"><cfif request[resultkey].ok>Passed<cfelse>Failed</cfif></td></tr>
-				<tr><th>Path</th><td class="numeric">#variables.WHEELS_TESTS_BASE_COMPONENT_PATH#</td></tr>
-				<tr><th>Date</th><td class="numeric">#dateFormat(request[resultkey].end)#</td></tr>
-				<tr><th>Begin</th><td class="numeric">#timeFormat(request[resultkey].begin, "HH:mm:ss L")#</td></tr>
-				<tr><th>End</th><td class="numeric">#timeFormat(request[resultkey].end, "HH:mm:ss L")#</td></tr>
-				<tr><th>Duration</th><td class="numeric">#timeFormat(request[resultkey].end - request[resultkey].begin, "HH:mm:ss")#</td></tr>
-				<tr><th>Cases</th><td class="numeric">#request[resultkey].numCases#</td></tr>
-				<tr><th>Tests</th><td class="numeric">#request[resultkey].numTests#</td></tr>
-				<tr><th<cfif request[resultkey].numFailures neq 0> class="failed"</cfif>>Failures</th><td class="numeric<cfif request[resultkey].numFailures neq 0> failed</cfif>">#request[resultkey].numFailures#</td></tr>
-				<tr><th<cfif request[resultkey].numErrors neq 0> class="failed"</cfif>>Errors</th><td class="numeric<cfif request[resultkey].numErrors neq 0> failed</cfif>">#request[resultkey].numErrors#</td></tr>
-			</table>
-			<table class="testing">
-			<tr><th>Test Case</th></th><th>Tests</th><th>Failures</th><th>Errors</th></tr>
-			<cfloop from="1" to="#arrayLen(request[resultkey].summary)#" index="testIndex">
-				<tr>
-					<td>#$cleanUpHTMLTestCaseName(request[resultkey].summary[testIndex].testCase)#</td>
-					<td class="numeric">#request[resultkey].summary[testIndex].numTests#</td>
-					<td class="numeric<cfif request[resultkey].summary[testIndex].numFailures neq 0> failed</cfif>">#request[resultkey].summary[testIndex].numFailures#</td>
-					<td class="numeric <cfif request[resultkey].summary[testIndex].numErrors neq 0> failed</cfif>">#request[resultkey].summary[testIndex].numErrors#</td>
-				</tr>
+		<cfset var loc = {}>
+		<cfset loc.ret = false>
+		<cfif structkeyexists(request, resultkey)>
+			<cfset request[resultkey].path = variables.WHEELS_TESTS_BASE_COMPONENT_PATH>
+			<cfset loc.a = ArrayLen(request[resultkey].summary)>
+			<cfset loc.b = ArrayLen(request[resultkey].results)>
+			<cfloop from="1" to="#loc.a#" index="loc.i">
+				<cfset request[resultkey].summary[loc.i].cleanTestCase = $cleanTestCase(request[resultkey].summary[loc.i].testCase)>
+				<cfset request[resultkey].summary[loc.i].packageName = $cleanTestPath(request[resultkey].summary[loc.i].testCase)>
 			</cfloop>
-			</table>
-			<table class="testing">
-			<tr><th>Test Case</th><th>Test Name</th><th>Time</th><th>Status</th></tr>
-			<cfloop from="1" to="#arrayLen(request[resultkey].results)#" index="testIndex">
-				<tr>
-					<td>#$cleanUpHTMLTestCaseName(request[resultkey].results[testIndex].testCase)#</td>
-					<td>#$cleanUpHTMLTestName(request[resultkey].results[testIndex].testName)#</td>
-					<td class="numeric">#request[resultkey].results[testIndex].time#</td>
-					<td class="<cfif request[resultkey].results[testIndex].status eq 'Success'>success<cfelse>failed</cfif>">#request[resultkey].results[testIndex].status#</td>
-				</tr>
-				<cfif request[resultkey].results[testIndex].status neq "Success">
-					<tr><td colspan="7" class="failed">#replace(request[resultkey].results[testIndex].message, newline, "<br>", "ALL")#</td></tr>
-				</cfif>
+			<cfloop from="1" to="#loc.b#" index="loc.i">
+				<cfset request[resultkey].results[loc.i].cleanTestCase = $cleanTestCase(request[resultkey].results[loc.i].testCase)>
+				<cfset request[resultkey].results[loc.i].cleanTestName = $cleanTestName(request[resultkey].results[loc.i].testName)>
+				<cfset request[resultkey].results[loc.i].packageName = $cleanTestPath(request[resultkey].results[loc.i].testCase)>
 			</cfloop>
-			</table>
-			</cfoutput>
-			</cfsavecontent>
-
+			<cfset loc.ret = request[resultkey]>
 		</cfif>
-
-		<cfreturn REReplace(result, "[	 " & newline & "]{2,}", " ", "ALL")>
-
+		<cfreturn loc.ret>
 	</cffunction>
 
 	<!--- WheelsRunner --->
-	<cffunction name="$WheelsRunner" returntype="string" output="false">
+	<cffunction name="$WheelsRunner" returntype="any" output="false">
 		<cfargument name="options" type="struct" required="false" default="#structnew()#">
 		<cfset var loc = {}>
 		<cfset var q = "">
@@ -529,47 +479,76 @@
 		<!--- save the original environment for overloaded --->
 		<cfset loc.savedenv = duplicate(application)>
 
-		<!--- by default we run all tests, however they can specify to run a specific oset of tests --->
+		<!--- by default we run all packages, however they can specify to run a specific package of tests --->
 		<cfset loc.package = "">
+
+		<!--- not only can we specify the package, but also the test we want to run --->
+		<cfset loc.test = "">
 
 		<!--- default test type --->
 		<cfset loc.type = "core">
 
 		<!--- if they specified a package we should only run that --->
-		<cfif structkeyexists(arguments.options, "package")>
+		<cfif structkeyexists(arguments.options, "package") and len(arguments.options.package)>
 			<cfset loc.package = arguments.options.package>
+			<cfif structkeyexists(arguments.options, "test") and len(arguments.options.test)>
+				<cfset loc.test = arguments.options.test>
+			</cfif>
 		</cfif>
 
 		<!--- overwrite the default test type if passed --->
-		<cfif structkeyexists(arguments.options, "type")>
+		<cfif structkeyexists(arguments.options, "type") and len(arguments.options.type)>
 			<cfset loc.type = arguments.options.type>
 		</cfif>
 
 		<!--- which tests to run --->
 		<cfif loc.type eq "core">
 			<!--- core tests --->
-			<cfset loc.root_test_path = application.wheels.wheelsComponentPath>
+			<cfset variables.ROOT_TEST_PATH = application.wheels.wheelsComponentPath>
 		<cfelseif loc.type eq "app">
 			<!--- app tests --->
-			<cfset loc.root_test_path = application.wheels.rootComponentPath>
+			<cfset variables.ROOT_TEST_PATH = application.wheels.rootComponentPath>
 		<cfelse>
 			<!--- specific plugin tests --->
-			<cfset loc.root_test_path = "#application.wheels.rootComponentPath#.#application.wheels.pluginComponentPath#.#loc.type#">
+			<cfset variables.ROOT_TEST_PATH = application.wheels.rootComponentPath>
+			<cfset variables.ROOT_TEST_PATH = ListAppend(variables.ROOT_TEST_PATH, "#application.wheels.pluginComponentPath#.#loc.type#", ".")>
 		</cfif>
 
-		<cfset loc.root_test_path = loc.root_test_path & ".tests">
+		<cfset variables.ROOT_TEST_PATH = ListAppend(variables.ROOT_TEST_PATH, "tests", ".")>
 
 		<!--- add the package if specified --->
-		<cfset loc.test_path = listappend("#loc.root_test_path#", loc.package, ".")>
+		<cfset loc.test_path = listappend("#variables.ROOT_TEST_PATH#", loc.package, ".")>
 
 		<!--- clean up testpath --->
 		<cfset loc.test_path = listchangedelims(loc.test_path, ".", "./\")>
 
 		<!--- convert to regular path --->
-		<cfset loc.relative_root_test_path = "/" & listchangedelims(loc.root_test_path, "/", ".")>
+		<cfset loc.relative_root_test_path = "/" & listchangedelims(variables.ROOT_TEST_PATH, "/", ".")>
 		<cfset loc.full_root_test_path = expandpath(loc.relative_root_test_path)>
 		<cfset loc.releative_test_path = "/" & listchangedelims(loc.test_path, "/", ".")>
 		<cfset loc.full_test_path = expandPath(loc.releative_test_path)>
+		<cfset loc.test_filter = "*">
+
+		<cfif not DirectoryExists(loc.full_test_path)>
+			<cfif FileExists(loc.full_test_path & ".cfc")>
+				<cfset loc.test_filter = reverse(listfirst(reverse(loc.test_path), "."))>
+				<cfset loc.test_path = reverse(listrest(reverse(loc.test_path), "."))>
+				<cfset loc.releative_test_path = "/" & listchangedelims(loc.test_path, "/", ".")>
+				<cfset loc.full_test_path = expandPath(loc.releative_test_path)>
+			<cfelse>
+				<!--- swap back the enviroment --->
+				<cfset application = loc.savedenv>
+				<cfthrow
+					type="Wheels.Testing"
+					message="Cannot find test package or single test"
+					detail="In order to run test you must supply a valid test package or single test file to run">
+			</cfif>
+		</cfif>
+
+		<cfdirectory directory="#loc.full_test_path#" action="list" recurse="true" name="q" filter="#loc.test_filter#.cfc" />
+
+		<!--- for test results display --->
+		<cfset variables.WHEELS_TESTS_BASE_COMPONENT_PATH = loc.test_path>
 
 		<!---
 		if env.cfm files exists, call to override enviroment settings so tests can run.
@@ -584,11 +563,6 @@
 			<cfinclude template="#loc.relative_root_test_path & '/populate.cfm'#">
 		</cfif>
 
-		<!--- for test results display --->
-		<cfset variables.WHEELS_TESTS_BASE_COMPONENT_PATH = loc.test_path>
-
-		<cfdirectory directory="#loc.full_test_path#" action="list" recurse="true" name="q" filter="*.cfc" />
-
 		<!--- run tests --->
 		<cfloop query="q">
 			<cfset loc.testname = listchangedelims(removechars(directory, 1, len(loc.full_test_path)), ".", "\/")>
@@ -599,15 +573,16 @@
 				<!--- ignore invalid tests and test that begin with underscores --->
 				<cfif left(name, 1) neq "_" and $isValidTest(loc.testname)>
 					<cfset loc.instance = createObject("component", loc.testname)>
-					<cfset loc.instance.$runTest(loc.resultKey)>
+					<cfset loc.instance.$runTest(loc.resultKey, loc.test)>
 				</cfif>
 			</cfif>
 		</cfloop>
 
 		<!--- swap back the enviroment --->
-		<cfset application = loc.savedenv>
+		<cfset structappend(application, loc.savedenv, true)>
 
-		<cfreturn $HTMLFormatTestResults(loc.resultKey)>
+		<!--- return the results --->
+		<cfreturn $results(loc.resultKey)>
 
 	</cffunction>
 
@@ -624,14 +599,19 @@
 		<cfreturn true>
 	</cffunction>
 
-	<cffunction name="$cleanUpHTMLTestCaseName" returntype="string" output="false" hint="removes the base test directory from the test name to make them prettier and more readable">
+	<cffunction name="$cleanTestCase" returntype="string" output="false" hint="removes the base test directory from the test name to make them prettier and more readable">
 		<cfargument name="str" type="string" required="true" hint="test case name to clean up">
 		<cfreturn listchangedelims(replace(arguments.str, variables.WHEELS_TESTS_BASE_COMPONENT_PATH, ""), ".", ".")>
 	</cffunction>
 
-	<cffunction name="$cleanUpHTMLTestName" returntype="string" output="false" hint="cleans up the test name so they are more readable">
+	<cffunction name="$cleanTestName" returntype="string" output="false" hint="cleans up the test name so they are more readable">
 		<cfargument name="str" type="string" required="true" hint="test name to clean up">
 		<cfreturn trim(rereplacenocase(removechars(arguments.str, 1, 4), "_|-", " ", "all"))>
+	</cffunction>
+
+	<cffunction name="$cleanTestPath" returntype="string" output="false" hint="cleans up the test name so they are more readable">
+		<cfargument name="str" type="string" required="true" hint="test name to clean up">
+		<cfreturn listchangedelims(replace(arguments.str, variables.ROOT_TEST_PATH, ""), ".", ".")>
 	</cffunction>
 
 	<cfinclude template="plugins/injection.cfm">

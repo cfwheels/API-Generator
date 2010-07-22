@@ -17,7 +17,7 @@
 			case "bit": {loc.returnValue = "cf_sql_bit"; break;}
 			case "char": case "nchar": case "uniqueidentifier": {loc.returnValue = "cf_sql_char"; break;}
 			case "date": {loc.returnValue = "cf_sql_date"; break;}
-			case "datetime": case "smalldatetime": {loc.returnValue = "cf_sql_timestamp"; break;}
+			case "datetime": case "datetime2": case "smalldatetime": {loc.returnValue = "cf_sql_timestamp"; break;}
 			case "decimal": case "money": case "smallmoney": {loc.returnValue = "cf_sql_decimal"; break;}
 			case "float": {loc.returnValue = "cf_sql_float"; break;}
 			case "int": {loc.returnValue = "cf_sql_integer"; break;}
@@ -42,13 +42,40 @@
 	<cfargument name="parameterize" type="boolean" required="true">
 	<cfargument name="$primaryKey" type="string" required="false" default="">
 	<cfscript>
-		var loc = {};
+		var loc = { containsGroup = false, afterWhere = "" };
 		var query = {};
-		if (arguments.limit > 0)
+		if (arguments.limit + arguments.offset gt 0)
 		{
+			if (IsSimpleValue(arguments.sql[ArrayLen(arguments.sql) - 1]) and FindNoCase("GROUP BY", arguments.sql[ArrayLen(arguments.sql) - 1]))
+				loc.containsGroup = true;
+			if (arguments.sql[ArrayLen(arguments.sql)] Contains ",")
+			{
+				// fix for pagination issue when ordering multiple columns with same name
+				loc.order = arguments.sql[ArrayLen(arguments.sql)];
+				loc.newOrder = "";
+				loc.doneColumns = "";
+				loc.done = 0;
+				loc.iEnd = ListLen(loc.order);
+				for (loc.i=1; loc.i <= loc.iEnd; loc.i++)
+				{
+					loc.item = ListGetAt(loc.order, loc.i);
+					loc.column = SpanExcluding(Reverse(SpanExcluding(Reverse(loc.item), ".")), " ");
+					if (ListFind(loc.doneColumns, loc.column))
+					{
+						loc.done++;
+						loc.item = loc.item & " AS tmp" & loc.done; 
+					}
+					loc.doneColumns = ListAppend(loc.doneColumns, loc.column);
+					loc.newOrder = ListAppend(loc.newOrder, loc.item);
+				}
+				arguments.sql[ArrayLen(arguments.sql)] = loc.newOrder;
+			}
+
 			// select clause always comes first in the array, the order by clause last, remove the leading keywords leaving only the columns and set to the ones used in the inner most sub query
 			loc.thirdSelect = ReplaceNoCase(ReplaceNoCase(arguments.sql[1], "SELECT DISTINCT ", ""), "SELECT ", "");
 			loc.thirdOrder = ReplaceNoCase(arguments.sql[ArrayLen(arguments.sql)], "ORDER BY ", "");
+			if (loc.containsGroup)
+				loc.thirdGroup = ReplaceNoCase(arguments.sql[ArrayLen(arguments.sql) - 1], "GROUP BY ", "");
 	
 			// the first select is the outer most in the query and need to contain columns without table names and using aliases when they exist
 			loc.firstSelect = $columnAlias(list=$tableName(list=loc.thirdSelect, action="remove"), action="keep");
@@ -57,9 +84,14 @@
 			loc.iEnd = ListLen(loc.thirdOrder);
 			for (loc.i=1; loc.i <= loc.iEnd; loc.i++)
 			{
-				loc.iItem = ReplaceNoCase(ReplaceNoCase(ListGetAt(loc.thirdOrder, loc.i), " ASC", ""), " DESC", "");
+				loc.iItem = ReReplace(ReReplace(ListGetAt(loc.thirdOrder, loc.i), " ASC\b", ""), " DESC\b", "");
 				if (!ListFindNoCase(loc.thirdSelect, loc.iItem))
 					loc.thirdSelect = ListAppend(loc.thirdSelect, loc.iItem);
+				if (loc.containsGroup) {
+					loc.iItem = REReplace(loc.iItem, "[[:space:]]AS[[:space:]][A-Za-z1-9]+", "", "all");
+					if (!ListFindNoCase(loc.thirdGroup, loc.iItem))
+						loc.thirdGroup = ListAppend(loc.thirdGroup, loc.iItem);
+				}
 			}
 
 			// the second select also needs to contain columns without table names and using aliases when they exist (but now including the columns added above)
@@ -69,7 +101,7 @@
 			loc.firstOrder = $tableName(list=loc.thirdOrder, action="remove");
 
 			// second order clause is the same as the first but with the ordering reversed
-			loc.secondOrder = ReplaceNoCase(ReplaceNoCase(ReplaceNoCase(loc.firstOrder, " DESC", chr(7), "all"), " ASC", " DESC", "all"), chr(7), " ASC", "all");
+			loc.secondOrder = Replace(ReReplace(ReReplace(loc.firstOrder, " DESC\b", chr(7), "all"), " ASC\b", " DESC", "all"), chr(7), " ASC", "all");
 
 			// fix column aliases from order by clauses
 			loc.thirdOrder = $columnAlias(list=loc.thirdOrder, action="remove");
@@ -81,12 +113,17 @@
 			if (ListRest(arguments.sql[2], " ") Contains " ")
 				loc.beforeWhere = loc.beforeWhere & "DISTINCT ";
 			loc.beforeWhere = loc.beforeWhere & "TOP " & arguments.limit+arguments.offset & " " & loc.thirdSelect & " " & arguments.sql[2];
+			if (loc.containsGroup)
+				loc.afterWhere = "GROUP BY " & loc.thirdGroup & " ";
 			loc.afterWhere = "ORDER BY " & loc.thirdOrder & ") AS tmp1 ORDER BY " & loc.secondOrder & ") AS tmp2 ORDER BY " & loc.firstOrder;
 			ArrayDeleteAt(arguments.sql, 1);
 			ArrayDeleteAt(arguments.sql, 1);
 			ArrayDeleteAt(arguments.sql, ArrayLen(arguments.sql));
+			if (loc.containsGroup)
+				ArrayDeleteAt(arguments.sql, ArrayLen(arguments.sql));
 			ArrayPrepend(arguments.sql, loc.beforeWhere);
 			ArrayAppend(arguments.sql, loc.afterWhere);
+
 		}
 		else
 		{
@@ -95,8 +132,10 @@
 		arguments.name = "query.name";
 		arguments.result = "loc.result";
 		arguments.datasource = variables.instance.connection.datasource;
-		arguments.username = variables.instance.connection.username;
-		arguments.password = variables.instance.connection.password;
+		if (Len(variables.instance.connection.username))
+			arguments.username = variables.instance.connection.username;
+		if (Len(variables.instance.connection.password))
+			arguments.password = variables.instance.connection.password;
 		if (application.wheels.serverName == "Railo")
 			arguments.psq = false; // set queries in Railo to not preserve single quotes on the entire cfquery block (we'll handle this individually in the SQL statement instead)  
 		loc.sql = arguments.sql;
@@ -110,7 +149,7 @@
 		StructDelete(arguments, "parameterize");
 		StructDelete(arguments, "$primaryKey");
 	</cfscript>
-	<cfquery attributeCollection="#arguments#"><cfloop array="#loc.sql#" index="loc.i"><cfif IsStruct(loc.i)><cfif IsBoolean(loc.parameterize) AND loc.parameterize><cfset loc.queryParamAttributes = StructNew()><cfset loc.queryParamAttributes.cfsqltype = loc.i.type><cfset loc.queryParamAttributes.value = loc.i.value><cfif StructKeyExists(loc.i, "null")><cfset loc.queryParamAttributes.null = loc.i.null></cfif><cfif StructKeyExists(loc.i, "scale") AND loc.i.scale GT 0><cfset loc.queryParamAttributes.scale = loc.i.scale></cfif><cfqueryparam attributeCollection="#loc.queryParamAttributes#"><cfelse>'#loc.i.value#'</cfif><cfelse>#Replace(PreserveSingleQuotes(loc.i), "[[comma]]", ",", "all")#</cfif>#chr(13)##chr(10)#</cfloop></cfquery>
+	<cfquery attributeCollection="#arguments#"><cfloop array="#loc.sql#" index="loc.i"><cfif IsStruct(loc.i)><cfif IsBoolean(loc.parameterize) AND loc.parameterize><cfset loc.queryParamAttributes = $CFQueryParameters(loc.i)><cfif loc.queryParamAttributes.value eq "null">NULL<cfelseif StructKeyExists(loc.queryParamAttributes, "list")>(<cfqueryparam attributeCollection="#loc.queryParamAttributes#">)<cfelse><cfqueryparam attributeCollection="#loc.queryParamAttributes#"></cfif><cfelse>'#loc.i.value#'</cfif><cfelse>#Replace(PreserveSingleQuotes(loc.i), "[[comma]]", ",", "all")#</cfif>#chr(13)##chr(10)#</cfloop></cfquery>
 	<cfscript>
 		loc.returnValue.result = loc.result;
 		if (StructKeyExists(query, "name"))

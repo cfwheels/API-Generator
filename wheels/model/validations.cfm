@@ -10,10 +10,11 @@
 	'
 	categories="model-initialization,validations" chapters="object-validation" functions="validatesExclusionOf,validatesFormatOf,validatesInclusionOf,validatesLengthOf,validatesNumericalityOf,validatesPresenceOf,validatesUniquenessOf">
 	<cfargument name="properties" type="string" required="false" default="" hint="Name of property or list of property names to validate against (can also be called with the `property` argument).">
-	<cfargument name="message" type="string" required="false" default="#application.wheels.functions.validatesConfirmationOf.message#" hint="Supply a custom error message here to override the built-in one.">
+	<cfargument name="message" type="string" required="false" hint="Supply a custom error message here to override the built-in one.">
 	<cfargument name="when" type="string" required="false" default="onSave" hint="Pass in `onCreate` or `onUpdate` to limit when this validation occurs (by default validation will occur on both create and update, i.e. `onSave`).">
 	<cfargument name="if" type="string" required="false" default="" hint="String expression to be evaluated that decides if validation will be run (if the expression returns `true` validation will run).">
 	<cfargument name="unless" type="string" required="false" default="" hint="String expression to be evaluated that decides if validation will be run (if the expression returns `false` validation will run).">
+	<cfset $args(name="validatesConfirmationOf", args=arguments)>
 	<cfset $registerValidation(methods="$validateConfirmationOf", argumentCollection=arguments)>
 </cffunction>
 
@@ -26,13 +27,14 @@
 	categories="model-initialization,validations" chapters="object-validation" functions="validatesConfirmationOf,validatesExclusionOf,validatesFormatOf,validatesInclusionOf,validatesLengthOf,validatesNumericalityOf,validatesPresenceOf,validatesUniquenessOf">
 	<cfargument name="properties" type="string" required="false" default="" hint="See documentation for @validatesConfirmationOf.">
 	<cfargument name="list" type="string" required="true" hint="Single value or list of values that should not be allowed.">
-	<cfargument name="message" type="string" required="false" default="#application.wheels.functions.validatesExclusionOf.message#" hint="See documentation for @validatesConfirmationOf.">
+	<cfargument name="message" type="string" required="false" hint="See documentation for @validatesConfirmationOf.">
 	<cfargument name="when" type="string" required="false" default="onSave" hint="See documentation for @validatesConfirmationOf.">
-	<cfargument name="allowBlank" type="boolean" required="false" default="#application.wheels.functions.validatesExclusionOf.allowBlank#" hint="If set to `true`, validation will be skipped if the property value is an empty string or doesn't exist at all.">
+	<cfargument name="allowBlank" type="boolean" required="false" hint="If set to `true`, validation will be skipped if the property value is an empty string or doesn't exist at all.">
 	<cfargument name="if" type="string" required="false" default="" hint="See documentation for @validatesConfirmationOf.">
 	<cfargument name="unless" type="string" required="false" default="" hint="See documentation for @validatesConfirmationOf.">
 	<cfscript>
-		arguments.list = Replace(arguments.list, ", ", ",", "all");
+		$args(name="validatesExclusionOf", args=arguments);
+		arguments.list = $listClean(arguments.list);
 		$registerValidation(methods="$validateExclusionOf", argumentCollection=arguments);
 	</cfscript>
 </cffunction>
@@ -49,17 +51,18 @@
 	categories="model-initialization,validations" chapters="object-validation" functions="validatesConfirmationOf,validatesExclusionOf,validatesInclusionOf,validatesLengthOf,validatesNumericalityOf,validatesPresenceOf,validatesUniquenessOf">
 	<cfargument name="properties" type="string" required="false" default="" hint="See documentation for @validatesConfirmationOf.">
 	<cfargument name="regEx" type="string" required="false" default="" hint="Regular expression to verify against.">
-	<cfargument name="type" type="string" required="false" default="" hint="One of the following types to verify against: `creditcard`, `date`, `email`, `eurodate`, `guid`, `social_security_number`, `ssn`, `telephone`, `time`, `URL`, `USdate`, `UUID`, `zipcode` (will be passed through to CFML's `isValid` function).">
-	<cfargument name="message" type="string" required="false" default="#application.wheels.functions.validatesFormatOf.message#" hint="See documentation for @validatesConfirmationOf.">
+	<cfargument name="type" type="string" required="false" default="" hint="One of the following types to verify against: `creditcard`, `date`, `email`, `eurodate`, `guid`, `social_security_number`, `ssn`, `telephone`, `time`, `URL`, `USdate`, `UUID`, `variableName`, `zipcode` (will be passed through to CFML's `isValid` function).">
+	<cfargument name="message" type="string" required="false" hint="See documentation for @validatesConfirmationOf.">
 	<cfargument name="when" type="string" required="false" default="onSave" hint="See documentation for @validatesConfirmationOf.">
-	<cfargument name="allowBlank" type="boolean" required="false" default="#application.wheels.functions.validatesFormatOf.allowBlank#" hint="See documentation for @validatesExclusionOf.">
+	<cfargument name="allowBlank" type="boolean" required="false" hint="See documentation for @validatesExclusionOf.">
 	<cfargument name="if" type="string" required="false" default="" hint="See documentation for @validatesConfirmationOf.">
 	<cfargument name="unless" type="string" required="false" default="" hint="See documentation for @validatesConfirmationOf.">
 	<cfscript>
+		$args(name="validatesFormatOf", args=arguments);
 		if (application.wheels.showErrorInformation)
 		{
-			if (Len(arguments.type) && !ListFindNoCase("creditcard,date,email,eurodate,guid,social_security_number,ssn,telephone,time,URL,USdate,UUID,zipcode", arguments.type))
-				$throw(type="Wheels.IncorrectArguments", message="The `#arguments.type#` type is not supported.", extendedInfo="Use one of the supported types: `creditcard`, `date`, `email`, `eurodate`, `guid`, `social_security_number`, `ssn`, `telephone`, `time`, `URL`, `USdate`, `UUID`, `zipcode`");
+			if (Len(arguments.type) && !ListFindNoCase("creditcard,date,email,eurodate,guid,social_security_number,ssn,telephone,time,URL,USdate,UUID,variableName,zipcode", arguments.type))
+				$throw(type="Wheels.IncorrectArguments", message="The `#arguments.type#` type is not supported.", extendedInfo="Use one of the supported types: `creditcard`, `date`, `email`, `eurodate`, `guid`, `social_security_number`, `ssn`, `telephone`, `time`, `URL`, `USdate`, `UUID`, `variableName`, `zipcode`");
 		}
 		$registerValidation(methods="$validateFormatOf", argumentCollection=arguments);
 	</cfscript>
@@ -74,13 +77,14 @@
 	categories="model-initialization,validations" chapters="object-validation" functions="validatesConfirmationOf,validatesExclusionOf,validatesFormatOf,validatesLengthOf,validatesNumericalityOf,validatesPresenceOf,validatesUniquenessOf">
 	<cfargument name="properties" type="string" required="false" default="" hint="See documentation for @validatesConfirmationOf.">
 	<cfargument name="list" type="string" required="true" hint="List of allowed values.">
-	<cfargument name="message" type="string" required="false" default="#application.wheels.functions.validatesInclusionOf.message#" hint="See documentation for @validatesConfirmationOf.">
+	<cfargument name="message" type="string" required="false" hint="See documentation for @validatesConfirmationOf.">
 	<cfargument name="when" type="string" required="false" default="onSave" hint="See documentation for @validatesConfirmationOf.">
-	<cfargument name="allowBlank" type="boolean" required="false" default="#application.wheels.functions.validatesInclusionOf.allowBlank#" hint="See documentation for @validatesExclusionOf.">
+	<cfargument name="allowBlank" type="boolean" required="false" hint="See documentation for @validatesExclusionOf.">
 	<cfargument name="if" type="string" required="false" default="" hint="See documentation for @validatesConfirmationOf.">
 	<cfargument name="unless" type="string" required="false" default="" hint="See documentation for @validatesConfirmationOf.">
 	<cfscript>
-		arguments.list = Replace(arguments.list, ", ", ",", "all");
+		$args(name="validatesInclusionOf", args=arguments);
+		arguments.list = $listClean(arguments.list);
 		$registerValidation(methods="$validateInclusionOf", argumentCollection=arguments);
 	</cfscript>
 </cffunction>
@@ -96,18 +100,19 @@
 	'
 	categories="model-initialization,validations" chapters="object-validation" functions="validatesConfirmationOf,validatesExclusionOf,validatesFormatOf,validatesInclusionOf,validatesNumericalityOf,validatesPresenceOf,validatesUniquenessOf">
 	<cfargument name="properties" type="string" required="false" default="" hint="See documentation for @validatesConfirmationOf.">
-	<cfargument name="message" type="string" required="false" default="#application.wheels.functions.validatesLengthOf.message#" hint="See documentation for @validatesConfirmationOf.">
+	<cfargument name="message" type="string" required="false" hint="See documentation for @validatesConfirmationOf.">
 	<cfargument name="when" type="string" required="false" default="onSave" hint="See documentation for @validatesConfirmationOf.">
-	<cfargument name="allowBlank" type="boolean" required="false" default="#application.wheels.functions.validatesLengthOf.allowBlank#" hint="See documentation for @validatesExclusionOf.">
-	<cfargument name="exactly" type="numeric" required="false" default="#application.wheels.functions.validatesLengthOf.exactly#" hint="The exact length that the property value has to be.">
-	<cfargument name="maximum" type="numeric" required="false" default="#application.wheels.functions.validatesLengthOf.maximum#" hint="The maximum length that the property value has to be.">
-	<cfargument name="minimum" type="numeric" required="false" default="#application.wheels.functions.validatesLengthOf.minimum#" hint="The minimum length that the property value has to be.">
-	<cfargument name="within" type="string" required="false" default="#application.wheels.functions.validatesLengthOf.within#" hint="A list of two values (minimum and maximum) that the length of the property value has to fall within.">
+	<cfargument name="allowBlank" type="boolean" required="false" hint="See documentation for @validatesExclusionOf.">
+	<cfargument name="exactly" type="numeric" required="false" hint="The exact length that the property value has to be.">
+	<cfargument name="maximum" type="numeric" required="false" hint="The maximum length that the property value has to be.">
+	<cfargument name="minimum" type="numeric" required="false" hint="The minimum length that the property value has to be.">
+	<cfargument name="within" type="string" required="false" hint="A list of two values (minimum and maximum) that the length of the property value has to fall within.">
 	<cfargument name="if" type="string" required="false" default="" hint="See documentation for @validatesConfirmationOf.">
 	<cfargument name="unless" type="string" required="false" default="" hint="See documentation for @validatesConfirmationOf.">
 	<cfscript>
+		$args(name="validatesLengthOf", args=arguments);
 		if (Len(arguments.within))
-			arguments.within = ListToArray(Replace(arguments.within, ", ", ",", "all"));
+			arguments.within = $listClean(list=arguments.within, returnAs="array");
 		$registerValidation(methods="$validateLengthOf", argumentCollection=arguments);
 	</cfscript>
 </cffunction>
@@ -120,12 +125,20 @@
 	'
 	categories="model-initialization,validations" chapters="object-validation" functions="validatesConfirmationOf,validatesExclusionOf,validatesFormatOf,validatesInclusionOf,validatesLengthOf,validatesPresenceOf,validatesUniquenessOf">
 	<cfargument name="properties" type="string" required="false" default="" hint="See documentation for @validatesConfirmationOf.">
-	<cfargument name="message" type="string" required="false" default="#application.wheels.functions.validatesNumericalityOf.message#" hint="See documentation for @validatesConfirmationOf.">
+	<cfargument name="message" type="string" required="false" hint="See documentation for @validatesConfirmationOf.">
 	<cfargument name="when" type="string" required="false" default="onSave" hint="See documentation for @validatesConfirmationOf.">
-	<cfargument name="allowBlank" type="boolean" required="false" default="#application.wheels.functions.validatesNumericalityOf.allowBlank#" hint="See documentation for @validatesExclusionOf.">
-	<cfargument name="onlyInteger" type="boolean" required="false" default="#application.wheels.functions.validatesNumericalityOf.onlyInteger#" hint="Specifies whether the property value has to be an integer.">
+	<cfargument name="allowBlank" type="boolean" required="false" hint="See documentation for @validatesExclusionOf.">
+	<cfargument name="onlyInteger" type="boolean" required="false" hint="Specifies whether the property value has to be an integer.">
 	<cfargument name="if" type="string" required="false" default="" hint="See documentation for @validatesConfirmationOf.">
 	<cfargument name="unless" type="string" required="false" default="" hint="See documentation for @validatesConfirmationOf.">
+	<cfargument name="odd" type="boolean" required="false" hint="Specifies the value must be an odd number.">
+	<cfargument name="even" type="boolean" required="false" hint="Specifies the value must be an even number.">
+	<cfargument name="greaterThan" type="numeric" required="false" hint="Specifies the value must be greater than the supplied value.">
+	<cfargument name="greaterThanOrEqualTo" type="numeric" required="false" hint="Specifies the value must be greater than or equal the supplied value.">
+	<cfargument name="equalTo" type="numeric" required="false" hint="Specifies the value must be equal to the supplied value.">
+	<cfargument name="lessThan" type="numeric" required="false" hint="Specifies the value must be less than the supplied value.">
+	<cfargument name="lessThanOrEqualTo" type="numeric" required="false" hint="Specifies the value must be less than or equal the supplied value.">
+	<cfset $args(name="validatesNumericalityOf", args=arguments)>
 	<cfset $registerValidation(methods="$validateNumericalityOf", argumentCollection=arguments)>
 </cffunction>
 
@@ -137,10 +150,11 @@
 	'
 	categories="model-initialization,validations" chapters="object-validation" functions="validatesConfirmationOf,validatesExclusionOf,validatesFormatOf,validatesInclusionOf,validatesLengthOf,validatesNumericalityOf,validatesUniquenessOf">
 	<cfargument name="properties" type="string" required="false" default="" hint="See documentation for @validatesConfirmationOf.">
-	<cfargument name="message" type="string" required="false" default="#application.wheels.functions.validatesPresenceOf.message#" hint="See documentation for @validatesConfirmationOf.">
+	<cfargument name="message" type="string" required="false" hint="See documentation for @validatesConfirmationOf.">
 	<cfargument name="when" type="string" required="false" default="onSave" hint="See documentation for @validatesConfirmationOf.">
 	<cfargument name="if" type="string" required="false" default="" hint="See documentation for @validatesConfirmationOf.">
 	<cfargument name="unless" type="string" required="false" default="" hint="See documentation for @validatesConfirmationOf.">
+	<cfset $args(name="validatesPresenceOf", args=arguments)>
 	<cfset $registerValidation(methods="$validatePresenceOf", argumentCollection=arguments)>
 </cffunction>
 
@@ -155,14 +169,15 @@
 	'
 	categories="model-initialization,validations" chapters="object-validation" functions="validatesConfirmationOf,validatesExclusionOf,validatesFormatOf,validatesInclusionOf,validatesLengthOf,validatesNumericalityOf,validatesPresenceOf">
 	<cfargument name="properties" type="string" required="false" default="" hint="See documentation for @validatesConfirmationOf.">
-	<cfargument name="message" type="string" required="false" default="#application.wheels.functions.validatesUniquenessOf.message#" hint="See documentation for @validatesConfirmationOf.">
+	<cfargument name="message" type="string" required="false" hint="See documentation for @validatesConfirmationOf.">
 	<cfargument name="when" type="string" required="false" default="onSave" hint="See documentation for @validatesConfirmationOf.">
-	<cfargument name="allowBlank" type="boolean" required="false" default="#application.wheels.functions.validatesUniquenessOf.allowBlank#" hint="See documentation for @validatesExclusionOf.">
+	<cfargument name="allowBlank" type="boolean" required="false" hint="See documentation for @validatesExclusionOf.">
 	<cfargument name="scope" type="string" required="false" default="" hint="One or more properties by which to limit the scope of the uniqueness constraint.">
 	<cfargument name="if" type="string" required="false" default="" hint="See documentation for @validatesConfirmationOf.">
 	<cfargument name="unless" type="string" required="false" default="" hint="See documentation for @validatesConfirmationOf.">
 	<cfscript>
-		arguments.scope = Replace(arguments.scope, ", ", ",", "all");
+		$args(name="validatesUniquenessOf", args=arguments);
+		arguments.scope = $listClean(arguments.scope);
 		$registerValidation(methods="$validateUniquenessOf", argumentCollection=arguments);
 	</cfscript>
 </cffunction>
@@ -234,20 +249,21 @@
 		</cfif>
 	'
 	categories="model-object,errors" chapters="object-validation" functions="">
+	<cfargument name="callbacks" type="boolean" required="false" default="true" hint="See documentation for @save.">
 	<cfscript>
 		var loc = {};
 		loc.returnValue = false;
 		clearErrors();
-		if ($callback("beforeValidation"))
+		if ($callback("beforeValidation", arguments.callbacks))
 		{
 			if (isNew())
 			{
-				if ($callback("beforeValidationOnCreate") && $validate("onSave") && $validate("onCreate") && $callback("afterValidation") && $callback("afterValidationOnCreate"))
+				if ($callback("beforeValidationOnCreate", arguments.callbacks) && $validate("onSave,onCreate") && $callback("afterValidation", arguments.callbacks) && $callback("afterValidationOnCreate", arguments.callbacks))
 					loc.returnValue = true;
 			}
 			else
 			{
-				if ($callback("beforeValidationOnUpdate") && $validate("onSave") && $validate("onUpdate") && $callback("afterValidation") && $callback("afterValidationOnUpdate"))
+				if ($callback("beforeValidationOnUpdate", arguments.callbacks) && $validate("onSave,onUpdate") && $callback("afterValidation", arguments.callbacks) && $callback("afterValidationOnUpdate", arguments.callbacks))
 					loc.returnValue = true;
 			}
 		}
@@ -263,18 +279,11 @@
 		var loc = {};
 
 		// combine `method`/`methods` and `property`/`properties` into one variables for easier processing below
-		if (StructKeyExists(arguments, "method"))
-		{
-			arguments.methods = arguments.method;
-			StructDelete(arguments, "method");
-		}
-		if (StructKeyExists(arguments, "property"))
-		{
-			arguments.properties = arguments.property;
-			StructDelete(arguments, "property");
-		}
+		$combineArguments(args=arguments, combine="methods,method", required=true);
+		// `validate`, `validateOnCreate` and `validateOnUpdate` do not take the properties argument
+		// however other validations do.
+		$combineArguments(args=arguments, combine="properties,property", required=false);
 
-		// when using the core validations the developer needs to pass in specific properties, throw an error if they haven't
 		if (application.wheels.showErrorInformation)
 		{
 			if (StructKeyExists(arguments, "properties"))
@@ -301,7 +310,7 @@
 				if (StructKeyExists(arguments, "properties"))
 				{
 					loc.validation.args.property = Trim(ListGetAt(loc.validation.args.properties, loc.j));
-					loc.validation.args.message = $validationErrorMessage(message=loc.validation.args.message, property=loc.validation.args.property);
+					//loc.validation.args.message = $validationErrorMessage(message=loc.validation.args.message, property=loc.validation.args.property);
 				}
 				StructDelete(loc.validation.args, "when");
 				StructDelete(loc.validation.args, "methods");
@@ -313,14 +322,12 @@
 </cffunction>
 
 <cffunction name="$validationErrorMessage" returntype="string" access="public" output="false" hint="Creates nicer looking error text by humanizing the property name and capitalizing it when appropriate.">
-	<cfargument name="message" type="string" required="true">
 	<cfargument name="property" type="string" required="true">
+	<cfargument name="message" type="string" required="true">
 	<cfscript>
 		var returnValue = "";
-
 		// turn property names into lower cased words
-		returnValue = Replace(arguments.message, "[property]", LCase(humanize(arguments.property)), "all");
-
+		returnValue = Replace(arguments.message, "[property]", LCase(variables.wheels.class.properties[arguments.property].label), "all");
 		// capitalize the first word in the property name if it comes first in the sentence
 		if (Left(arguments.message, 10) == "[property]")
 			returnValue = capitalize(returnValue);
@@ -340,46 +347,41 @@
 		if (!arguments.execute)
 			return true;
 
-		// loop through all validations for passed in type (`onSave`, `onCreate` etc) that has been set on this model object
-		loc.iEnd = ArrayLen(variables.wheels.class.validations[arguments.type]);
-		for (loc.i=1; loc.i <= loc.iEnd; loc.i++)
+		// loop over the passed in types
+		for (loc.typeIndex=1; loc.typeIndex <= ListLen(arguments.type); loc.typeIndex++)
 		{
-			loc.thisValidation = variables.wheels.class.validations[arguments.type][loc.i];
-			if (application.wheels.showErrorInformation)
+			loc.type = ListGetAt(arguments.type, loc.typeIndex);
+			// loop through all validations for passed in type (`onSave`, `onCreate` etc) that has been set on this model object
+			loc.iEnd = ArrayLen(variables.wheels.class.validations[loc.type]);
+			for (loc.i=1; loc.i <= loc.iEnd; loc.i++)
 			{
-				if (StructKeyExists(loc.thisValidation.args, "property"))
+				loc.thisValidation = variables.wheels.class.validations[loc.type][loc.i];
+				if ($evaluateCondition(argumentCollection=loc.thisValidation.args))
 				{
-					// when using the core validations the developer needs to pass in specific properties
-					if (!ListFindNoCase(StructKeyList(variables.wheels.class.properties), loc.thisValidation.args.property) && !ListFindNoCase(StructKeyList(variables.wheels.class.calculatedProperties), loc.thisValidation.args.property))
-						$throw(type="Wheels.PropertyNotFound", message="Property Not Found", extendedInfo="The `#loc.thisValidation.args.property#` property does not exist in the `#capitalize(variables.wheels.class.name)#` model so validation can not be performed against it.");
-				}
-			}
-			if ($evaluateValidationCondition(argumentCollection=loc.thisValidation.args))
-			{
-				if (loc.thisValidation.method == "$validatePresenceOf")
-				{
-					// if the property does not exist or if it's blank we add an error on the object (for all other validation types we call corresponding methods below instead)
-					if (!StructKeyExists(this, loc.thisValidation.args.property) || !Len(this[loc.thisValidation.args.property]))
-						addError(property=loc.thisValidation.args.property, message=loc.thisValidation.args.message);
-				}
-				else
-				{
-					// if the validation set does not allow blank values we can set an error right away, otherwise we call a method to run the actual check
-					if (StructKeyExists(loc.thisValidation.args, "property") && StructKeyExists(loc.thisValidation.args, "allowBlank") && !loc.thisValidation.args.allowBlank && (!StructKeyExists(this, loc.thisValidation.args.property) || !Len(this[loc.thisValidation.args.property])))
-						addError(property=loc.thisValidation.args.property, message=loc.thisValidation.args.message);
-					else if (!StructKeyExists(loc.thisValidation.args, "property") || (StructKeyExists(this, loc.thisValidation.args.property) && Len(this[loc.thisValidation.args.property])))
-						$invoke(method=loc.thisValidation.method, argumentCollection=loc.thisValidation.args);
+					if (loc.thisValidation.method == "$validatePresenceOf")
+					{
+						// if the property does not exist or if it's blank we add an error on the object (for all other validation types we call corresponding methods below instead)
+						if (!StructKeyExists(this, loc.thisValidation.args.property) || !Len(trim(this[loc.thisValidation.args.property])))
+							addError(property=loc.thisValidation.args.property, message=$validationErrorMessage(loc.thisValidation.args.property, loc.thisValidation.args.message));
+					}
+					else
+					{
+						// if the validation set does not allow blank values we can set an error right away, otherwise we call a method to run the actual check
+						if (StructKeyExists(loc.thisValidation.args, "property") && StructKeyExists(loc.thisValidation.args, "allowBlank") && !loc.thisValidation.args.allowBlank && (!StructKeyExists(this, loc.thisValidation.args.property) || !Len(this[loc.thisValidation.args.property])))
+							addError(property=loc.thisValidation.args.property, message=$validationErrorMessage(loc.thisValidation.args.property, loc.thisValidation.args.message));
+						else if (!StructKeyExists(loc.thisValidation.args, "property") || (StructKeyExists(this, loc.thisValidation.args.property) && Len(this[loc.thisValidation.args.property])))
+							$invoke(method=loc.thisValidation.method, argumentCollection=loc.thisValidation.args);
+					}
 				}
 			}
 		}
-
 		// now that we have run all the validation checks we can return `true` if no errors exist on the object, `false` otherwise
 		loc.returnValue = !hasErrors();
 	</cfscript>
 	<cfreturn loc.returnValue>
 </cffunction>
 
-<cffunction name="$evaluateValidationCondition" returntype="boolean" access="public" output="false" hint="Evaluates the condition to determine if the validation should be executed.">
+<cffunction name="$evaluateCondition" returntype="boolean" access="public" output="false" hint="Evaluates the condition to determine if the validation should be executed.">
 	<cfscript>
 		var returnValue = false;
 		// proceed with validation when `if` has been supplied and it evaluates to `true` or when `unless` has been supplied and it evaluates to `false`
@@ -395,28 +397,28 @@
 		var loc = {};
 		loc.virtualConfirmProperty = arguments.property & "Confirmation";
 		if (StructKeyExists(this, loc.virtualConfirmProperty) && this[arguments.property] != this[loc.virtualConfirmProperty])
-			addError(property=loc.virtualConfirmProperty, message=arguments.message);
+			addError(property=loc.virtualConfirmProperty, message=$validationErrorMessage(arguments.property, arguments.message));
 	</cfscript>
 </cffunction>
 
 <cffunction name="$validateExclusionOf" returntype="void" access="public" output="false" hint="Adds an error if the object property fail to pass the validation setup in the @validatesExclusionOf method.">
 	<cfscript>
 		if (ListFindNoCase(arguments.list, this[arguments.property]))
-			addError(property=arguments.property, message=arguments.message);
+			addError(property=arguments.property, message=$validationErrorMessage(arguments.property, arguments.message));
 	</cfscript>
 </cffunction>
 
 <cffunction name="$validateFormatOf" returntype="void" access="public" output="false" hint="Adds an error if the object property fail to pass the validation setup in the @validatesFormatOf method.">
 	<cfscript>
 		if ((Len(arguments.regEx) && !REFindNoCase(arguments.regEx, this[arguments.property])) || (Len(arguments.type) && !IsValid(arguments.type, this[arguments.property])))
-			addError(property=arguments.property, message=arguments.message);
+			addError(property=arguments.property, message=$validationErrorMessage(arguments.property, arguments.message));
 	</cfscript>
 </cffunction>
 
 <cffunction name="$validateInclusionOf" returntype="void" access="public" output="false" hint="Adds an error if the object property fail to pass the validation setup in the @validatesInclusionOf method.">
 	<cfscript>
 		if (!ListFindNoCase(arguments.list, this[arguments.property]))
-			addError(property=arguments.property, message=arguments.message);
+			addError(property=arguments.property, message=$validationErrorMessage(arguments.property, arguments.message));
 	</cfscript>
 </cffunction>
 
@@ -424,33 +426,42 @@
 	<cfscript>
 		if (arguments.maximum)
 		{
-			if (Len(this[arguments.property]) > arguments.maximum)
-				addError(property=arguments.property, message=arguments.message);
+			if (Len(this[arguments.property]) gt arguments.maximum)
+				addError(property=arguments.property, message=$validationErrorMessage(arguments.property, arguments.message));
 		}
 		else if (arguments.minimum)
 		{
-			if (Len(this[arguments.property]) < arguments.minimum)
-				addError(property=arguments.property, message=arguments.message);
+			if (Len(this[arguments.property]) lt arguments.minimum)
+				addError(property=arguments.property, message=$validationErrorMessage(arguments.property, arguments.message));
 		}
 		else if (arguments.exactly)
 		{
-			if (Len(this[arguments.property]) != arguments.exactly)
-				addError(property=arguments.property, message=arguments.message);
+			if (Len(this[arguments.property]) neq arguments.exactly)
+				addError(property=arguments.property, message=$validationErrorMessage(arguments.property, arguments.message));
 		}
 		else if (IsArray(arguments.within) && ArrayLen(arguments.within))
 		{
-			if (Len(this[arguments.property]) < arguments.within[1] || Len(this[arguments.property]) > arguments.within[2])
-				addError(property=arguments.property, message=arguments.message);
+			if (Len(this[arguments.property]) lt arguments.within[1] or Len(this[arguments.property]) gt arguments.within[2])
+				addError(property=arguments.property, message=$validationErrorMessage(arguments.property, arguments.message));
 		}
 	</cfscript>
 </cffunction>
 
 <cffunction name="$validateNumericalityOf" returntype="void" access="public" output="false" hint="Adds an error if the object property fail to pass the validation setup in the @validatesNumericalityOf method.">
 	<cfscript>
-		if (!IsNumeric(this[arguments.property]))
-			addError(property=arguments.property, message=arguments.message);
-		else if (arguments.onlyInteger && Round(this[arguments.property]) != this[arguments.property])
-			addError(property=arguments.property, message=arguments.message);
+		if (
+			!IsNumeric(this[arguments.property])
+			|| (arguments.onlyInteger && Round(this[arguments.property]) != this[arguments.property])
+			|| (IsNumeric(arguments.greaterThan) && this[arguments.property] lte arguments.greaterThan)
+			|| (IsNumeric(arguments.greaterThanOrEqualTo) && this[arguments.property] lt arguments.greaterThanOrEqualTo)
+			|| (IsNumeric(arguments.equalTo) && this[arguments.property] neq arguments.equalTo)
+			|| (IsNumeric(arguments.lessThan) && this[arguments.property] gte arguments.lessThan)
+			|| (IsNumeric(arguments.lessThanOrEqualTo) && this[arguments.property] gt arguments.lessThanOrEqualTo)
+			|| (IsBoolean(arguments.odd) && arguments.odd && !BitAnd(this[arguments.property], 1))
+			|| (IsBoolean(arguments.even) && arguments.even && BitAnd(this[arguments.property], 1))
+		){
+			addError(property=arguments.property, message=$validationErrorMessage(arguments.property, arguments.message));
+		}
 	</cfscript>
 </cffunction>
 
@@ -491,6 +502,37 @@
 
 		// we add an error if an object was found in the database and the current object is either not saved yet or not the same as the one in the database
 		if (IsObject(loc.existingObject) && (isNew() || loc.existingObject.key() != key($persisted=true)))
-			addError(property=arguments.property, message=arguments.message);
+			addError(property=arguments.property, message=$validationErrorMessage(arguments.property, arguments.message));
 	</cfscript>
+</cffunction>
+
+<cffunction name="$validationExists" returntype="boolean" access="public" output="false" hint="Checks to see if a validation has been created for a property.">
+	<cfargument name="property" type="string" required="true">
+	<cfargument name="validation" type="string" required="true">
+	<cfscript>
+		var loc = {};
+		loc.returnValue = false;
+
+		for (loc.when in variables.wheels.class.validations) {
+
+			if (StructKeyExists(variables.wheels.class.validations, loc.when)) {
+
+				loc.eventArray = variables.wheels.class.validations[loc.when];
+				loc.iEnd = ArrayLen(loc.eventArray);
+				for (loc.i = 1; loc.i lte loc.iEnd; loc.i++) {
+
+					if (StructKeyExists(loc.eventArray[loc.i].args, "property") && loc.eventArray[loc.i].args.property == arguments.property and loc.eventArray[loc.i].method == "$#arguments.validation#") {
+						loc.returnValue = true;
+						break;
+					}
+				}
+			}
+		}
+	</cfscript>
+	<cfreturn loc.returnValue />
+</cffunction>
+
+<cffunction name="automaticValidations" returntype="void" access="public" output="false" hint="Whether to turn default validations on or off for this model.">
+	<cfargument name="value" type="boolean" required="true">
+	<cfset variables.wheels.class.automaticValidations = arguments.value>
 </cffunction>

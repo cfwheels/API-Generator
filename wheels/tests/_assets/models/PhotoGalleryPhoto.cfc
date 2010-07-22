@@ -1,7 +1,8 @@
 <cfcomponent extends="wheelsMapping.model">
 
 	<cffunction name="init">
-		<cfset belongsTo(name="photogallery", class="photogallery", foreignKey="photogalleryid")>
+		<cfset property(name="DESCRIPTION1", column="description")>
+		<cfset belongsTo(name="photogallery", modelName="photogallery", foreignKey="photogalleryid")>
 	</cffunction>
 
 </cfcomponent>

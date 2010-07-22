@@ -9,29 +9,34 @@
 <cfoutput>
 
 <h1>Wheels <abbr title="Application Programming Interface">API</abbr> Generator</h1>
-<p><strong>Version:</strong> #wheelsVersion#</p>
+<p><strong>Version Loaded:</strong> #wheelsVersion#</p>
 
-#buttonTo(text="Generate API Docs", action="generate")#
+#startFormTag(action="generate")#
+	#textFieldTag(label="Version: ", name="version")#
+	#submitTag(value="Generate API Docs")#
+#endFormTag()#
 
 <h2>Functions That Will be Generated</h2>
 
 <h3>Controller/View</h3>
-<ul>
+<dl>
 	<cfloop list="#controllerFunctions#" index="function">
 		<cfif isApiFunction(function, controllerScope)>
-			<li><strong>#function#()</strong> = #GetMetaData(controllerScope[function]).hint#</li>
+			<dt>#function#()</dt>
+			<dd>#GetMetaData(controllerScope[function]).hint#</dd>
 		</cfif>
 	</cfloop>
-</ul>
+</dl>
 
 <h3>Model</h3>
-<ul>
+<dl>
 	<cfloop list="#modelFunctions#" index="function">
 		<cfif isApiFunction(function, modelScope)>
-			<li><strong>#function#()</strong> - #GetMetaData(modelScope[function]).hint#</li>
+			<dt>#function#()</dt>
+			<dd>#GetMetaData(modelScope[function]).hint#</dd>
 		</cfif>
 	</cfloop>
-</ul>
+</dl>
 
 </cfoutput>
 

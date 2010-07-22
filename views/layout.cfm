@@ -1,6 +1,12 @@
 <!--- Place HTML here that should be used as the default layout of your application --->
 <html>
-	<body>
-		<cfoutput>#contentForLayout()#</cfoutput>
-	</body>
+<head>
+<meta name="robots" content="noindex,nofollow" />
+</head>
+
+<body>
+
+<cfoutput>#contentForLayout()#</cfoutput>
+
+</body>
 </html>

@@ -10,15 +10,19 @@
 	categories="view-helper,text" functions="excerpt,highlight,simpleFormat,titleize,truncate">
 	<cfargument name="text" type="string" required="true" hint="The text to create links in.">
 	<cfargument name="link" type="string" required="false" default="all" hint="Whether to link URLs, email addresses or both. Possible values are: `all` (default), `URLs` and `emailAddresses`.">
+	<cfargument name="domains" type="string" required="false" hint="The domains (.com, .co.uk etc) to auto link, not used with email addresses.">
 	<cfscript>
 		var loc = {};
-		loc.urlRegex = "(?ix)([^(url=)|(href=)'""])(((https?)://([^:]+\:[^@]*@)?)([\d\w\-]+\.)?[\w\d\-\.]+\.(com|net|org|info|biz|tv|co\.uk|de|ro|it)(( / [\w\d\.\-@%\\\/:]* )+)?(\?[\w\d\?%,\.\/\##!@:=\+~_\-&amp;]*(?<![\.]))?)";
+		$args(name="autoLink", args=arguments);
+		loc.domains = Replace(ListChangeDelims(arguments.domains, "|"), ".", "\.", "all");
+		loc.urlRegex = "(?ix)([^(url=)|(href=)'""])(((https?)://([^:]+\:[^@]*@)?)([\d\w\-]+\.)?[\w\d\-\.]+\.(" & loc.domains & ")(( / [\w\d\.\-@%\\\/:]* )+)?(\?[\w\d\?%,\.\/\##!@:=\+~_\-&amp;]*(?<![\.]))?)";
 		loc.mailRegex = "(([^@\s]+)@((?:[-a-z0-9]+\.)+[a-z]{2,}))";
-		loc.returnValue = arguments.text;
+		loc.returnValue = " " & arguments.text & " "; // spaces added because the regex assumes links are in the middle of the text
 		if (arguments.link != "emailAddresses")
 			loc.returnValue = loc.returnValue.ReplaceAll(loc.urlRegex, "$1<a href=""$2"">$2</a>");
 		if (arguments.link != "URLs")
 			loc.returnValue = REReplaceNoCase(loc.returnValue, loc.mailRegex, "<a href=""mailto:\1"">\1</a>", "all");
+		loc.returnValue = Mid(loc.returnValue, 2, Len(loc.returnValue)-2);
 	</cfscript>
 	<cfreturn loc.returnValue>
 </cffunction>
@@ -147,6 +151,12 @@
 		loc.returnValue = Replace(loc.returnValue, "#Chr(13)##Chr(10)#", Chr(10), "all");
 		loc.returnValue = Replace(loc.returnValue, "#Chr(10)##Chr(10)#", "</p><p>", "all");
 		loc.returnValue = Replace(loc.returnValue, "#Chr(10)#", "<br />", "all");
+		
+		// add back in our returns so we can strip the tags and re-apply them without issue
+		// this is good to be edited the textarea text in it's original format (line returns)
+		loc.returnValue = Replace(loc.returnValue, "</p><p>", "</p>#Chr(13)##Chr(10)##Chr(13)##Chr(10)#<p>", "all");
+		loc.returnValue = Replace(loc.returnValue, "<br />", "<br />#Chr(13)##Chr(10)#", "all");
+		
 		if (arguments.wrap)
 			loc.returnValue = "<p>" & loc.returnValue & "</p>";
 	</cfscript>
@@ -184,14 +194,48 @@
 	'
 	categories="view-helper,text" functions="autoLink,excerpt,highlight,simpleFormat,titleize">
 	<cfargument name="text" type="string" required="true" hint="The text to truncate.">
-	<cfargument name="length" type="numeric" required="false" default="30" hint="Length to truncate the text to.">
-	<cfargument name="truncateString" type="string" required="false" default="..." hint="String to replace the last characters with.">
+	<cfargument name="length" type="numeric" required="false" hint="Length to truncate the text to.">
+	<cfargument name="truncateString" type="string" required="false" hint="String to replace the last characters with.">
 	<cfscript>
 		var loc = {};
-		if (Len(arguments.text) > arguments.length)
+		$args(name="truncate", args=arguments);
+		if (Len(arguments.text) gt arguments.length)
 			loc.returnValue = Left(arguments.text, arguments.length-Len(arguments.truncateString)) & arguments.truncateString;
 		else
 			loc.returnValue = arguments.text;
+	</cfscript>
+	<cfreturn loc.returnValue>
+</cffunction>
+
+<cffunction name="wordTruncate" returntype="string" access="public" output="false" hint="Truncates text to the specified length of words and replaces the remaining characters with the specified truncate string. (Defaults to ""..."")."
+	examples=
+	'
+		##wordTruncate(text="Wheels is a framework for ColdFusion", length=4)##
+		-> Wheels is a frame...
+
+		##truncate(text="Wheels is a framework for ColdFusion", truncateString=" (more)")##
+		-> Wheels is a framework for (more)
+	'
+	categories="view-helper,text" functions="autoLink,excerpt,highlight,simpleFormat,titleize">
+	<cfargument name="text" type="string" required="true" hint="The text to truncate.">
+	<cfargument name="length" type="numeric" required="false" default="5" hint="Length to truncate the text to.">
+	<cfargument name="truncateString" type="string" required="false" default="..." hint="String to replace the last characters with.">
+	<cfscript>
+		var loc = {};
+		loc.returnValue = "";
+		loc.wordArray = ListToArray(arguments.text, " ", false);
+		loc.wordLen = ArrayLen(loc.wordArray);
+		
+		if (loc.wordLen gt arguments.length)
+		{
+			for (loc.i = 1; loc.i lte arguments.length; loc.i++)
+				loc.returnValue = ListAppend(loc.returnValue, loc.wordArray[loc.i], " ");
+			loc.returnValue = loc.returnValue & arguments.truncateString;
+		}
+		else
+		{
+			loc.returnValue = arguments.text;
+		}
 	</cfscript>
 	<cfreturn loc.returnValue>
 </cffunction>

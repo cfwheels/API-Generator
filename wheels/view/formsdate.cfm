@@ -2,9 +2,12 @@
 	<cfargument name="startYear" type="numeric" required="true">
 	<cfargument name="endYear" type="numeric" required="true">
 	<cfscript>
-		if (structkeyexists(arguments, "value") && val(arguments.value) gt 0 && arguments.value lt arguments.startYear)
+		if (Structkeyexists(arguments, "value") && Val(arguments.value))
 		{
-			arguments.startYear = arguments.value;
+			if (arguments.value < arguments.startYear && arguments.endYear > arguments.startYear)
+				arguments.startYear = arguments.value;
+			else if(arguments.value < arguments.endYear && arguments.endYear < arguments.startYear)
+				arguments.endYear = arguments.value;
 		}
 		arguments.$loopFrom = arguments.startYear;
 		arguments.$loopTo = arguments.endYear;
@@ -78,8 +81,11 @@
 	<cfargument name="objectName" type="any" required="true">
 	<cfargument name="property" type="string" required="true">
 	<cfargument name="$functionName" type="string" required="true">
+	<cfargument name="combine" type="boolean" required="false" default="true">
 	<cfscript>
 		var loc = {};
+		loc.combine = arguments.combine;
+		StructDelete(arguments, "combine", false);
 		loc.name = $tagName(arguments.objectName, arguments.property);
 		arguments.$id = $tagId(arguments.objectName, arguments.property);
 		loc.value = $formValue(argumentCollection=arguments);
@@ -89,7 +95,13 @@
 		for (loc.i=1; loc.i <= loc.iEnd; loc.i++)
 		{
 			loc.item = ListGetAt(arguments.order, loc.i);
-			arguments.name = loc.name & "($" & loc.item & ")";
+			loc.marker = "($" & loc.item & ")";
+			if(!loc.combine)
+			{
+				loc.name = $tagName(arguments.objectName, "#arguments.property#-#loc.item#");
+				loc.marker = "";
+			}
+			arguments.name = loc.name & loc.marker;
 			if (Len(loc.value))
 				if (Isdate(loc.value))
 					arguments.value = Evaluate("#loc.item#(loc.value)");
@@ -128,9 +140,10 @@
 		loc.optionContent = "";
 		if (!Len(arguments.value) && (!IsBoolean(arguments.includeBlank) || !arguments.includeBlank))
 			arguments.value = Evaluate("#arguments.$type#(Now())");
-		arguments.$appendToFor = arguments.$type;
 		if (StructKeyExists(arguments, "order") && ListLen(arguments.order) > 1 && ListLen(arguments.label) > 1)
 			arguments.label = ListGetAt(arguments.label, ListFindNoCase(arguments.order, arguments.$type));
+		if (!StructKeyExists(arguments, "id"))
+			arguments.id = arguments.$id & "-" & arguments.$type;
 		loc.before = $formBeforeElement(argumentCollection=arguments);
 		loc.after = $formAfterElement(argumentCollection=arguments);
 		loc.content = "";
@@ -147,7 +160,7 @@
 		{
 			for (loc.i=arguments.$loopFrom; loc.i <= arguments.$loopTo; loc.i=loc.i+arguments.$step)
 			{
-				loc.args = duplicate(arguments);
+				loc.args = Duplicate(arguments);
 				loc.args.counter = loc.i;
 				loc.args.optionContent = loc.optionContent;
 				loc.content = loc.content & $yearMonthHourMinuteSecondSelectTagContent(argumentCollection=loc.args);
@@ -157,15 +170,12 @@
 		{
 			for (loc.i=arguments.$loopFrom; loc.i >= arguments.$loopTo; loc.i=loc.i-arguments.$step)
 			{
-				loc.args = duplicate(arguments);
+				loc.args = Duplicate(arguments);
 				loc.args.counter = loc.i;
 				loc.args.optionContent = loc.optionContent;
 				loc.content = loc.content & $yearMonthHourMinuteSecondSelectTagContent(argumentCollection=loc.args);
 			}
 		}
-
-		if (!StructKeyExists(arguments, "id"))
-			arguments.id = arguments.$id & "-" & arguments.$type;
 		loc.returnValue = loc.before & $element(name="select", skip="objectName,property,label,labelPlacement,prepend,append,prependToLabel,appendToLabel,errorElement,value,includeBlank,order,separator,startYear,endYear,monthDisplay,dateSeparator,dateOrder,timeSeparator,timeOrder,minuteStep", skipStartingWith="label", content=loc.content, attributes=arguments) & loc.after;
 	</cfscript>
 	<cfreturn loc.returnValue>
@@ -184,6 +194,6 @@
 			arguments.optionContent = arguments.counter;
 		if (arguments.$type == "minute" || arguments.$type == "second")
 			arguments.optionContent = NumberFormat(arguments.optionContent, "09");
-		return $element(name="option", content=arguments.optionContent, attributes=loc.args);
 	</cfscript>
+	<cfreturn $element(name="option", content=arguments.optionContent, attributes=loc.args)>
 </cffunction>

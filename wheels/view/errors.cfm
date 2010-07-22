@@ -3,17 +3,19 @@
 	'
 		<!--- view code --->
 		<cfoutput>
-		    ##errorMessageFor(objectName="user")##
+		    ##errorMessagesFor(objectName="user")##
 		</cfoutput>
 	'
 	categories="view-helper,errors" chapters="form-helpers-and-showing-errors" functions="errorMessagesOn">
 	<cfargument name="objectName" type="string" required="true" hint="The variable name of the object to display error messages for.">
-	<cfargument name="class" type="string" required="false" default="#application.wheels.functions.errorMessagesFor.class#" hint="CSS class to set on the `ul` element.">
-	<cfargument name="showDuplicates" type="boolean" required="false" default="#application.wheels.functions.errorMessagesFor.showDuplicates#" hint="Whether to show duplicate error messages.">
+	<cfargument name="class" type="string" required="false" hint="CSS class to set on the `ul` element.">
+	<cfargument name="showDuplicates" type="boolean" required="false" hint="Whether to show duplicate error messages.">
 	<cfscript>
 		var loc = {};
-		$insertDefaults(name="errorMessagesFor", input=arguments);
-		loc.object = Evaluate(arguments.objectName);
+		$args(name="errorMessagesFor", args=arguments);
+		loc.object = $getObject(arguments.objectName);
+		if (application.wheels.showErrorInformation && !IsObject(loc.object))
+			$throw(type="Wheels.IncorrectArguments", message="The `#arguments.objectName#` variable is not an object.");
 		loc.errors = loc.object.allErrors();
 		loc.returnValue = "";
 		if (!ArrayIsEmpty(loc.errors))
@@ -35,9 +37,9 @@
 						loc.listItems = loc.listItems & $element(name="li", content=loc.msg);
 						loc.used = ListAppend(loc.used, loc.msg, Chr(7));
 					}
-				}		
+				}
 			}
-			loc.returnValue = $element(name="ul", skip="objectName,showDuplicates", content=loc.listItems, attributes=arguments);			
+			loc.returnValue = $element(name="ul", skip="objectName,showDuplicates", content=loc.listItems, attributes=arguments);
 		}
 	</cfscript>
 	<cfreturn loc.returnValue>
@@ -48,20 +50,22 @@
 	'
 	<!--- view code --->
 	<cfoutput>
-	    ##errorMessageFor(objectName="user", property="email")##
+	    ##errorMessageOn(objectName="user", property="email")##
 	</cfoutput>
 	'
 	categories="view-helper,errors" chapters="form-helpers-and-showing-errors" functions="errorMessagesOn">
 	<cfargument name="objectName" type="string" required="true" hint="The variable name of the object to display the error message for.">
 	<cfargument name="property" type="string" required="true" hint="The name of the property to display the error message for.">
-	<cfargument name="prependText" type="string" required="false" default="#application.wheels.functions.errorMessageOn.prependText#" hint="String to prepend to the error message.">
-	<cfargument name="appendText" type="string" required="false" default="#application.wheels.functions.errorMessageOn.appendText#" hint="String to append to the error message.">
-	<cfargument name="wrapperElement" type="string" required="false" default="#application.wheels.functions.errorMessageOn.wrapperElement#" hint="HTML element to wrap the error message in.">
-	<cfargument name="class" type="string" required="false" default="#application.wheels.functions.errorMessageOn.class#" hint="CSS class to set on the wrapper element.">
+	<cfargument name="prependText" type="string" required="false" hint="String to prepend to the error message.">
+	<cfargument name="appendText" type="string" required="false" hint="String to append to the error message.">
+	<cfargument name="wrapperElement" type="string" required="false" hint="HTML element to wrap the error message in.">
+	<cfargument name="class" type="string" required="false" hint="CSS class to set on the wrapper element.">
 	<cfscript>
 		var loc = {};
-		$insertDefaults(name="errorMessageOn", input=arguments);
-		loc.object = Evaluate(arguments.objectName);
+		$args(name="errorMessageOn", args=arguments);
+		loc.object = $getObject(arguments.objectName);
+		if (application.wheels.showErrorInformation && !IsObject(loc.object))
+			$throw(type="Wheels.IncorrectArguments", message="The `#arguments.objectName#` variable is not an object.");
 		loc.error = loc.object.errorsOn(arguments.property);
 		loc.returnValue = "";
 		if (!ArrayIsEmpty(loc.error))

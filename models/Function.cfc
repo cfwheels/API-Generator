@@ -14,7 +14,6 @@
 		<cfset validatesPresenceOf("name,wheelsVersion,returnType,hint,examples")>
 		<cfset validatesNumericalityOf("parentFunctionSectionId")>
 		<cfset validatesNumericalityOf(property="childFunctionSectionId", allowBlank=true)>
-		<cfset validatesUniquenessOf("name")>
 		<!--- Callbacks --->
 		<cfset beforeValidation("processCategories")>
 		<cfset beforeSave("cleanExamples")>
@@ -71,21 +70,26 @@
 		
 		<cfif StructKeyExists(this, "parameters")>
 			<cfloop array="#this.parameters#" index="loc.parameter">
+				<!--- Ignore private parameters --->
 				<cfif Left(loc.parameter.name, 1) is not "$">
 					<cfset loc.argument = model("functionArgument").new()>
 					<cfset loc.argument.functionId = this.id>
 					<cfset loc.argument.name = loc.parameter.name>
+					<!--- `type` --->
 					<cfif StructKeyExists(loc.parameter, "type")>
 						<cfset loc.argument.type = loc.parameter.type>
 					</cfif>
+					<!--- `required` --->
 					<cfif StructKeyExists(loc.parameter, "required")>
 						<cfset loc.argument.required = loc.parameter.required>
 					</cfif>
+					<!--- `default` --->
 					<cfif
 						StructKeyExists(loc.parameter, "default")
 						and Len(loc.parameter.default) eq 0
 					>
 						<cfset loc.argument.defaultValue = "">
+					<!--- `default` is `[runtime expression]` --->
 					<cfelseif
 						StructKeyExists(loc.parameter, "default")
 						and loc.parameter.default is "[runtime expression]"
@@ -96,20 +100,16 @@
 					<cfelseif StructKeyExists(loc.parameter, "default")>
 						<cfset loc.argument.defaultValue = loc.parameter.default>
 					</cfif>
-					<cfset loc.argument.hint = loc.parameter.hint>
+					<!--- `hint` --->
+					<cfif StructKeyExists(loc.parameter, "hint")>
+						<cfset loc.argument.hint = loc.parameter.hint>
+					</cfif>
 						
-					<cftry>
-						<cfif not loc.argument.save()>
-							<cfoutput><p>Argument fail:</p></cfoutput>
-							<cfdump var="#loc.argument.allErrors()#"><cfabort>
-						</cfif>
-						
-						<cfcatch type="any">
-							<cfoutput><p>Argument fail:</p></cfoutput>
-							<cfdump var="#cfcatch#">
-							<cfdump var="#loc.argument#"><cfabort>
-						</cfcatch>
-					</cftry>
+					<cfif not loc.argument.save()>
+						<cfloop array="#loc.argument.allErrors()#" index="loc.error">
+							<cfset addErrorToBase(argumentCollection=loc.error)>
+						</cfloop>
+					</cfif>
 				</cfif>
 			</cfloop>
 		</cfif>
@@ -154,17 +154,22 @@
 					name = '#loc.referenceFunction#'
 			</cfquery>
 			<!--- Get reference function's parameter's hint from memory --->
-			<cfquery dbtype="query" name="loc.referenceParameter">
-				SELECT
-					hint
-				FROM
-					arguments.parametersQuery
-				WHERE
-					name = '#arguments.parameter.name#'
-					AND functionId = #loc.function.id#
-			</cfquery>
-			<!--- Update parameter to use reference function's parameter's hint --->
-			<cfset arguments.parameter.hint = loc.referenceParameter.hint>
+			<cfif loc.function.RecordCount gt 0>
+				<cfquery dbtype="query" name="loc.referenceParameter">
+					SELECT
+						hint
+					FROM
+						arguments.parametersQuery
+					WHERE
+						name = '#arguments.parameter.name#'
+						AND functionId = #loc.function.id#
+				</cfquery>
+				<!--- Update parameter to use reference function's parameter's hint --->
+				<cfset arguments.parameter.hint = loc.referenceParameter.hint>
+			<!--- If the hint doesn't exist, then show error --->
+			<cfelse>
+				<cfdump var="No hint to reference.">
+			</cfif>
 		</cfif>
 		
 		<cfreturn arguments.parameter>

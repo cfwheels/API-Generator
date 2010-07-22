@@ -3,6 +3,15 @@
 	<!----------------------------------------------------->
 	<!--- Public --->
 	
+	<cffunction name="init" hint="Defines verifications.">
+	
+		<!--- Verifications --->
+		<cfset verifies(only="generate", params="version")>
+	
+	</cffunction>
+	
+	<!----------------------------------------------------->
+	
 	<cffunction name="index" hint="Lists functions that will be imported.">
 		
 		<!--- Wheels version --->
@@ -23,7 +32,6 @@
 		<cfset var loc = {}>
 		<cfset loc.function = model("function")>
 		<cfset loc.function.cleanup()>
-		<cfset renderText("It worked!")>
 	
 	</cffunction>
 	
@@ -34,24 +42,24 @@
 		<cfset var loc = {}>
 		<cfset loc.function = model("function")>
 		<cfset loc.argument = model("functionArgument")>
-		<cfset loc.functions = loc.function.findAll(where="wheelsVersion='#get('version')#'", returnAs="objects")>
+		<cfset loc.functions = loc.function.findAll(where="wheelsVersion='#params.version#'", returnAs="objects")>
 		
 		<!--- Delete all functions for the version --->
 		<cfloop array="#loc.functions#" index="loc.functionToDelete">
 			<cfset loc.functionToDelete.deleteAllFunctionArguments()>
-			<cfset loc.functionToDelete.deleteAllRelatedFunctions()>
+			<!--- <cfset loc.functionToDelete.deleteAllRelatedFunctions() --->
 			<cfset loc.functionToDelete.delete()>
 		</cfloop>
 		
 		<!--- Controller functions --->
-		<cfset generateFunctions(super)>
+		<cfset controllerSavedItems = generateFunctions(super, params.version)>
 		<!--- Model functions. The "dummy" model is there so we can import a blank model. --->
-		<cfset generateFunctions(model("dummy"))>
+		<cfset modelSavedItems = generateFunctions(model("dummy"), params.version)>
 		<!--- Clean up argument hint data --->
 		<cfset clean()>
 		
-		<cfset numFunctions = loc.function.count(where="wheelsVersion='#get('version')#'")>
-		<cfoutput><p><strong>#numFunctions# functions imported</p></cfoutput><cfabort>
+		<cfset numFunctions = loc.function.count(where="wheelsVersion='#params.version#'")>
+		<cfset version = params.version>
 	
 	</cffunction>
 	
@@ -70,71 +78,89 @@
 	
 	</cffunction>
 	
+	
 	<!----------------------------------------------------->
 	<!--- Private --->
 	
-	<cffunction name="generateFunctions" access="private" returntype="boolean" hint="Generates a batch of functions based on scope and function names.">
+	<cffunction name="generateFunctions" access="private" hint="Generates a batch of functions based on scope and function names.">
 		<cfargument name="scope" hint="Structure containing functions to process.">
+		<cfargument name="version" type="string" hint="Version to store in DB.">
 	
 		<cfset var loc = {}>
-		<cfset loc.wheelsVersion = get("version")>
 		<cfset loc.functionList = StructKeyList(arguments.scope)>
-		<cfset loc.dataError = false>
-	
+		<cfset loc.saveStatus = []>
+		<cfset loc.saveStatusItem = {}>
+		
 		<cfloop list="#loc.functionList#" index="loc.currentFunction">
 			<cfif isApiFunction(loc.currentFunction, arguments.scope)>
+				<cfset loc.saveStatusItem = {}>
+				<cfset loc.saveStatusItem.dataError = false>
 				<cftry>
-					<!--- Dump function name so user can see what the app is doing --->
-					<cfdump var="#loc.currentFunction#">
 					<!--- New function object --->
 					<cfset loc.function = model("function").new()>
 					<!--- Parse function metadata --->
 					<cfset loc.functionData = GetMetaData(arguments.scope[loc.currentFunction])>
+					<!--- Set properties --->
+					<!--- Name --->
+					<cfset loc.saveStatusItem.name = loc.currentFunction>
 					<cfset loc.function.name = loc.functionData.name>
+					<!--- Return type --->
 					<cfif StructKeyExists(loc.functionData, "returnType")>
 						<cfset loc.function.returnType = loc.functionData.returnType>
+						<cfset loc.saveStatusItem.returnType = loc.functionData.returnType>
 					</cfif>
+					<!--- Hint --->
 					<cfset loc.function.hint = loc.functionData.hint>
+					<cfset loc.saveStatusItem.hint = loc.functionData.hint>
+					<!--- Examples --->
 					<cfset loc.function.examples = loc.functionData.examples>
+					<cfset loc.saveStatusItem.examples = loc.functionData.examples>
+					<!--- Categories --->
 					<cfset loc.function.categories = loc.functionData.categories>
+					<cfset loc.saveStatusItem.categories = loc.functionData.categories>
+					<!--- Chapters --->
 					<cfif StructKeyExists(loc.functionData, "chapters")>
 						<cfset loc.function.chapters = loc.functionData.chapters>
+						<cfset loc.saveStatusItem.chapters = loc.functionData.chapters>
 					</cfif>
+					<!--- Functions --->
 					<cfif StructKeyExists(loc.functionData, "functions")>
 						<cfset loc.function.functions = loc.functionData.functions>
+						<cfset loc.saveStatusItem.functions = loc.functionData.functions>
 					</cfif>
-					<cfset loc.function.wheelsVersion = loc.wheelsVersion>
+					<!--- Version --->
+					<cfset loc.function.wheelsVersion = arguments.version>
+					<!--- Parameters --->
 					<cfif StructKeyExists(loc.functionData, "parameters")>
 						<cfset loc.function.parameters = loc.functionData.parameters>
+						<cfset loc.saveStatusItem.parameters = loc.functionData.parameters>
 					</cfif>
 					<!--- Catch errors --->
 					<cfcatch type="any">
-						<cfset loc.dataError = true>
-						<cfoutput>
-							<p>#cfcatch.message#:</p>
-							<cfdump var="#loc.functionData#">
-						</cfoutput>
+						<cfset loc.saveStatusItem.dataError = true>
+					</cfcatch>
+				</cftry>
+				
+				<!--- Try saving data --->
+				<cftry>
+					<cfif loc.function.save()>
+						<cfset loc.saveStatusItem.saveError = false>
+					<cfelse>
+						<cfset loc.saveStatusItem.saveError = true>
+					</cfif>
+					
+					<cfcatch>
+						<cfset loc.saveStatusItem.saveError = true>
 					</cfcatch>
 				</cftry>
 			
-				<!--- On fail, return false transaction --->
-				<cfif
-					loc.dataError
-					or not loc.function.save()
-				>
-					<cfoutput>
-						<p>Error saving function:</p>
-						<cfdump var="#loc.function.allErrors()#">
-						<cfdump var="#loc.functionData#">
-					</cfoutput>
-				<cfelse>
-					<cfoutput><br /></cfoutput>
-				</cfif>
+				<!--- Save what was collected about status item --->
+				<cfset ArrayAppend(loc.saveStatus, loc.saveStatusItem)>
 			</cfif>
 		</cfloop>
 		
-		<cfreturn true>
-	
+		<cfreturn loc.saveStatus>
+		
 	</cffunction>
 	
 	<!----------------------------------------------------->
