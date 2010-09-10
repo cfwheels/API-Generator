@@ -24,10 +24,11 @@
 	<!----------------------------------------------------->
 	
 	<cffunction name="cleanup" hint="Cleans up documentation in database. Replaces references to 'See documentation for...', etc.">
+		<cfargument name="version" type="string" hint="Wheels version.">
 		
 		<cfset var loc = {}>
 		<cfset loc.parameters = model("functionArgument").findAll(returnAs="objects")>
-		<cfset loc.functions = model("function").findAll()>
+		<cfset loc.functions = model("function").findAll(where="wheelsVersion='#arguments.version#'")>
 		<cfset loc.parametersQuery = model("functionArgument").findAll()>
 		
 		<!--- Replace "See documentation for @..." references with intended documentation --->
@@ -144,6 +145,7 @@
 		<cfif Left(arguments.parameter.hint, 23) is "See documentation for @">
 			<cfset loc.referenceFunction = Replace(arguments.parameter.hint, ".", "")>
 			<cfset loc.referenceFunction = Right(loc.referenceFunction, Len(loc.referenceFunction) - 23)>
+			<cfdump var="#loc.referencFunction#">
 			<!--- Get reference function ID from memory --->
 			<cfquery dbtype="query" name="loc.function">
 				SELECT

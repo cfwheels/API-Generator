@@ -28,10 +28,11 @@
 	<!----------------------------------------------------->
 	
 	<cffunction name="clean" hint="Runs clean operation only.">
+		<cfargument name="version" type="string" hint="Version of Wheels.">
 	
 		<cfset var loc = {}>
 		<cfset loc.function = model("function")>
-		<cfset loc.function.cleanup()>
+		<cfset loc.function.cleanup(arguments.version)>
 	
 	</cffunction>
 	
@@ -56,7 +57,7 @@
 		<!--- Model functions. The "dummy" model is there so we can import a blank model. --->
 		<cfset modelSavedItems = generateFunctions(model("dummy"), params.version)>
 		<!--- Clean up argument hint data --->
-		<cfset clean()>
+		<cfset clean(params.version)>
 		
 		<cfset numFunctions = loc.function.count(where="wheelsVersion='#params.version#'")>
 		<cfset version = params.version>
@@ -143,9 +144,11 @@
 				
 				<!--- Try saving data --->
 				<cftry>
-					<cfif loc.function.save()>
+					<cfset loc.result = loc.function.save()>
+					<cfif loc.result>
 						<cfset loc.saveStatusItem.saveError = false>
 					<cfelse>
+						<cfdump var="#loc.function.allErrors()#" abort>
 						<cfset loc.saveStatusItem.saveError = true>
 					</cfif>
 					
