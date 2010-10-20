@@ -1,5 +1,17 @@
 <!--- PRIVATE FUNCTIONS --->
 
+<cffunction name="$createControllerObject" returntype="any" access="public" output="false">
+	<cfargument name="params" type="struct" required="true">
+	<cfscript>
+		var loc = {};
+		// if the controller file exists we instantiate it, otherwise we instantiate the parent controller
+		// this is done so that an action's view page can be rendered without having an actual controller file for it
+		loc.controllerName = $objectFileName(name=variables.$class.name, objectPath=variables.$class.path, type="controller");
+		loc.returnValue = $createObjectFromRoot(path=variables.$class.path, fileName=loc.controllerName, method="$initControllerObject", name=variables.$class.name, params=arguments.params);
+	</cfscript>
+	<cfreturn loc.returnValue>
+</cffunction>
+
 <cffunction name="$initControllerClass" returntype="any" access="public" output="false">
 	<cfargument name="name" type="string" required="false" default="">
 	<cfscript>
@@ -30,18 +42,6 @@
 			init();
 	</cfscript>
 	<cfreturn this>
-</cffunction>
-
-<cffunction name="$createControllerObject" returntype="any" access="public" output="false">
-	<cfargument name="params" type="struct" required="true">
-	<cfscript>
-		var loc = {};
-		// if the controller file exists we instantiate it, otherwise we instantiate the parent controller
-		// this is done so that an action's view page can be rendered without having an actual controller file for it
-		loc.controllerName = $objectFileName(name=variables.$class.name, objectPath=variables.$class.path, type="controller");
-		loc.returnValue = $createObjectFromRoot(path=variables.$class.path, fileName=loc.controllerName, method="$initControllerObject", name=variables.$class.name, params=arguments.params);
-	</cfscript>
-	<cfreturn loc.returnValue>
 </cffunction>
 
 <cffunction name="$setControllerClassData" returntype="void" access="public" output="false">

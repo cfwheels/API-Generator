@@ -1,3 +1,23 @@
+<cffunction name="$initializeRequestScope" returntype="void" access="public" output="false">
+	<cfscript>
+		if (!StructKeyExists(request, "wheels"))
+		{
+			request.wheels = {};
+			request.wheels.params = {};
+			request.wheels.cache = {};
+			
+			// create a structure to track the transaction status for all adapters
+			request.wheels.transactions = {};
+	
+			// store cache info for output in debug area
+			request.wheels.cacheCounts = {};
+			request.wheels.cacheCounts.hits = 0;
+			request.wheels.cacheCounts.misses = 0;
+			request.wheels.cacheCounts.culls = 0;
+		}
+	</cfscript>
+</cffunction>
+
 <cffunction name="$toXml" returntype="xml" access="public" output="false">
 	<cfargument name="data" type="any" required="true">
 	<cfscript>
@@ -450,15 +470,6 @@
 	<cfreturn loc.returnValue>
 </cffunction>
 
-<cffunction name="$controller" returntype="any" access="public" output="false">
-	<cfargument name="name" type="string" required="true">
-	<cfscript>
-		var returnValue = "";
-		returnValue = $doubleCheckedLock(name="controllerLock", condition="$cachedControllerClassExists", execute="$createControllerClass", conditionArgs=arguments, executeArgs=arguments);
-	</cfscript>
-	<cfreturn returnValue>
-</cffunction>
-
 <cffunction name="$addToCache" returntype="void" access="public" output="false">
 	<cfargument name="key" type="string" required="true">
 	<cfargument name="value" type="any" required="true">
@@ -630,7 +641,7 @@ Should now call bar() instead and marking foo() as deprecated
 	<cfset var loc = {}>
 	<cfset loc.ret = {}>
 	<cfset loc.tagcontext = []>
-	<cfif not application.wheels.showErrorInformation>
+	<cfif not application.wheels.showDebugInformation>
 		<cfreturn loc.ret>
 	</cfif>
 	<!--- set return value --->
@@ -745,7 +756,7 @@ Should now call bar() instead and marking foo() as deprecated
 	var loc = {};
 	application.wheels.plugins = {};
 	application.wheels.incompatiblePlugins = "";
-	application.wheels.mixableComponents = "application,dispatch,controller,model,microsoftsqlserver,mysql,oracle,postgresql,sqlite";
+	application.wheels.mixableComponents = "application,dispatch,controller,model,microsoftsqlserver,mysql,oracle,postgresql,h2";
 	application.wheels.mixins = {};
 	application.wheels.dependantPlugins = "";
 	loc.pluginFolder = GetDirectoryFromPath(GetBaseTemplatePath()) & "plugins";

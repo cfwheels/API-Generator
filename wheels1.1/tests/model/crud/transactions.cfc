@@ -129,7 +129,7 @@
 	</cffunction>
 
 	<cffunction name="test_deleteAll_with_transactions_disabled">
-		<cftransaction isolation="read_uncommitted">
+		<cftransaction>
 			<cfset model("tag").deleteAll(instantiate=true, transaction="none")>
 			<cfset loc.results = model("tag").findAll()>
 			<cfset assert("loc.results.recordcount IS 0")>
@@ -150,5 +150,15 @@
 		<cfset loc.tag = model("tagWithDataCallbacks").create(name="Kermit", description="The Frog", transaction="rollback")>
 		<cfset assert("IsObject(loc.tag)")>
 	</cffunction>
+
+	<cffunction name="test_should_close_when_error_raised">
+		<cfset loc.hash = model("tag").$hashedConnectionArgs()>
+		<cftry>
+			<cfset loc.tag = model("tag").create(id="", name="Kermit", description="The Frog", transaction="rollback")>
+			<cfcatch type="any"></cfcatch>
+		</cftry>
+		<cfset assert('request.wheels.transactions[loc.hash] eq false')>
+	</cffunction>
+
 
 </cfcomponent>

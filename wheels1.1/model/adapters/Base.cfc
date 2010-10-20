@@ -5,7 +5,15 @@
 		<cfargument name="datasource" type="string" required="true">
 		<cfargument name="username" type="string" required="true">
 		<cfargument name="password" type="string" required="true">
-		<cfset variables.instance.connection = arguments>
+		<cfargument name="info" type="struct" required="true">
+		<cfscript>
+		variables.instance.info = duplicate(arguments.info);
+		StructDelete(arguments, "info", false);
+		variables.instance.connection = {};
+		variables.instance.connection.datasource = arguments.datasource;
+		variables.instance.connection.username = arguments.username;
+		variables.instance.connection.password = arguments.password;
+		</cfscript>
 		<cfreturn this>
 	</cffunction>
 
@@ -74,6 +82,27 @@
 		<cfreturn loc.returnValue>
 	</cffunction>
 
+	<cffunction name="$addColumnsToSelectAndGroupBy" returntype="array" access="public" output="false">
+		<cfargument name="sql" type="array" required="true">
+		<cfscript>
+			var loc = {};
+			loc.returnValue = arguments.sql;
+			if (IsSimpleValue(loc.returnValue[ArrayLen(loc.returnValue)]) && Left(loc.returnValue[ArrayLen(loc.returnValue)], 8) IS "ORDER BY" && IsSimpleValue(loc.returnValue[ArrayLen(loc.returnValue)-1]) && Left(loc.returnValue[ArrayLen(loc.returnValue)-1], 8) IS "GROUP BY")
+			{
+				loc.iEnd = ListLen(loc.returnValue[ArrayLen(loc.returnValue)]);
+				for (loc.i=1; loc.i <= loc.iEnd; loc.i++)
+				{
+					loc.item = Trim(ReplaceNoCase(ReplaceNoCase(ReplaceNoCase(ListGetAt(loc.returnValue[ArrayLen(loc.returnValue)], loc.i), "ORDER BY ", ""), " ASC", ""), " DESC", ""));
+					if (!ListFindNoCase(ReplaceNoCase(loc.returnValue[ArrayLen(loc.returnValue)-1], "GROUP BY ", ""), loc.item))
+						loc.returnValue[ArrayLen(loc.returnValue)-1] = ListAppend(loc.returnValue[ArrayLen(loc.returnValue)-1], loc.item);
+					if (!ListFindNoCase(ReplaceNoCase(loc.returnValue[1], "SELECT ", ""), loc.item))
+						loc.returnValue[1] = ListAppend(loc.returnValue[1], loc.item);
+				}
+			}
+		</cfscript>
+		<cfreturn loc.returnValue>
+	</cffunction>
+
 	<cffunction name="$getColumns" returntype="query" access="public" output="false"
 		hint="retrieves all the column information from a table">
 		<cfargument name="tableName" type="string" required="true" hint="the table to retrieve column information for">
@@ -82,20 +111,34 @@
 		loc.args = duplicate(variables.instance.connection);
 		loc.args.table = arguments.tableName;
 		loc.args.type = "columns";
-		if (application.wheels.showErrorInformation)
+		// The Railo Oracle JDBC driver has a problem where it
+		// quotes tables names. We get around this by upper
+		// casing it
+		if (application.wheels.serverName eq "Railo" && variables.instance.info.driver_name eq "Oracle JDBC driver")
 		{
-			try
+			loc.args.table = ucase(loc.args.table);
+		}
+
+		try
+		{
+			if (application.wheels.serverName eq "Adobe ColdFusion" && variables.instance.info.driver_name eq "Oracle JDBC driver")
+			{
+				loc.columns = $$dbinfo(argumentCollection=loc.args);
+			}
+			else
 			{
 				loc.columns = $dbinfo(argumentCollection=loc.args);
 			}
-			catch (Any e)
-			{
-				$throw(type="Wheels.TableNotFound", message="The `#arguments.tableName#` table could not be found in the database.", extendedInfo="Add a table named `#arguments.tableName#` to your database or tell Wheels to use a different table for this model. For example you can tell a `user` model to use a table called `tbl_users` by creating a `User.cfc` file in the `models` folder, creating an `init` method inside it and then calling `table(""tbl_users"")` from within it.");
-			}
 		}
-		else
+		catch (Any e)
 		{
-			loc.columns = $dbinfo(argumentCollection=loc.args);
+			// Oracle driver doesn't throw an error if table isn't found
+			loc.columns = QueryNew("");
+		}
+
+		if (loc.columns.RecordCount eq 0)
+		{
+			$throw(type="Wheels.TableNotFound", message="The `#arguments.tableName#` table could not be found in the database.", extendedInfo="Add a table named `#arguments.tableName#` to your database or tell Wheels to use a different table for this model. For example you can tell a `user` model to use a table called `tbl_users` by creating a `User.cfc` file in the `models` folder, creating an `init` method inside it and then calling `table(""tbl_users"")` from within it.");
 		}
 		</cfscript>
 		<cfreturn loc.columns>
@@ -174,21 +217,14 @@
 		<cfargument name="limit" type="numeric" required="false" default="0">
 		<cfargument name="offset" type="numeric" required="false" default="0">
 		<cfargument name="$primaryKey" type="string" required="false" default="">
-		<cfargument name="$getid" type="boolean" required="false" default="false">
 		<cfscript>
 		var loc = {};
 		var query = {};
 
 		loc.returnValue = {};
-		loc.args = {};
-
+		loc.args = duplicate(variables.instance.connection);
 		loc.args.result = "loc.result";
 		loc.args.name = "query.name";
-		loc.args.datasource = variables.instance.connection.datasource;
-		if (Len(variables.instance.connection.username))
-			loc.args.username = variables.instance.connection.username;
-		if (Len(variables.instance.connection.password))
-			loc.args.password = variables.instance.connection.password;
 		// set queries in Railo to not preserve single quotes on the entire
 		// cfquery block (we'll handle this individually in the SQL statement instead)
 		if (application.wheels.serverName == "Railo")
@@ -201,21 +237,22 @@
 		StructDelete(loc.orgArgs, "limit", false);
 		StructDelete(loc.orgArgs, "offset", false);
 		StructDelete(loc.orgArgs, "$primaryKey", false);
-		StructDelete(loc.orgArgs, "$getid", false);
 		StructAppend(loc.args, loc.orgArgs, true);
 		</cfscript>
 
-		<cfquery attributeCollection="#loc.args#"><cfloop array="#arguments.sql#" index="loc.i"><cfif IsStruct(loc.i)><cfif arguments.parameterize><cfset loc.queryParamAttributes = $CFQueryParameters(loc.i)><cfif StructKeyExists(loc.queryParamAttributes, "useNull")>NULL<cfelseif StructKeyExists(loc.queryParamAttributes, "list")>(<cfqueryparam attributeCollection="#loc.queryParamAttributes#">)<cfelse><cfqueryparam attributeCollection="#loc.queryParamAttributes#"></cfif><cfelse>'#loc.i.value#'</cfif><cfelse>#Replace(PreserveSingleQuotes(loc.i), "[[comma]]", ",", "all")#</cfif>#chr(13)##chr(10)#</cfloop><cfif arguments.limit>LIMIT #arguments.limit#<cfif arguments.offset>#chr(13)##chr(10)#OFFSET #arguments.offset#</cfif></cfif></cfquery>
+		<cfquery attributeCollection="#loc.args#"><cfloop array="#arguments.sql#" index="loc.i"><cfif IsStruct(loc.i)><cfif arguments.parameterize><cfset loc.queryParamAttributes = $CFQueryParameters(loc.i)><cfif StructKeyExists(loc.queryParamAttributes, "useNull")>NULL<cfelseif StructKeyExists(loc.queryParamAttributes, "list")>(<cfqueryparam attributeCollection="#loc.queryParamAttributes#">)<cfelse><cfqueryparam attributeCollection="#loc.queryParamAttributes#"></cfif><cfelse>'#loc.i.value#'</cfif><cfelse><cfset loc.i = Replace(PreserveSingleQuotes(loc.i), "[[comma]]", ",", "all")>#PreserveSingleQuotes(loc.i)#</cfif>#chr(13)##chr(10)#</cfloop><cfif arguments.limit>LIMIT #arguments.limit#<cfif arguments.offset>#chr(13)##chr(10)#OFFSET #arguments.offset#</cfif></cfif></cfquery>
 
 		<cfscript>
 		if (StructKeyExists(query, "name"))
 			loc.returnValue.query = query.name;
-		// see if we need to retrieve the generated key
-		if (arguments.$getid)
-		{
-			loc.$id = $identitySelect(loc.args, loc.result, arguments);
+
+		// get/set the primary key value if necessary
+		// will be done on insert statement involving auto-incremented primary keys when Railo/ACF cannot retrieve it for us
+		// this happens on non-supported databases (example: H2) and drivers (example: jTDS)
+		loc.$id = $identitySelect(queryAttributes=loc.args, result=loc.result, primaryKey=arguments.$primaryKey);
+		if (StructKeyExists(loc, "$id"))
 			StructAppend(loc.result, loc.$id);
-		}
+
 		loc.returnValue.result = loc.result;
 		</cfscript>
 		<cfreturn loc.returnValue>

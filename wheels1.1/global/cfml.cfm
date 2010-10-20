@@ -6,7 +6,7 @@
 	<cfargument name="timeout" type="numeric" required="false" default="30">
 	<cfset var loc = {}>
 	<cflock name="#arguments.name#" type="readonly" timeout="#arguments.timeout#">
-		<cfset loc.returnValue = $invoke(componentReference=arguments.object, method=arguments.method, argumentCollection=arguments.args)>
+		<cfset loc.returnValue = $invoke(componentReference=arguments.object, method=arguments.method, invokeArgs=arguments.args)>
 	</cflock>
 	<cfreturn loc.returnValue>
 </cffunction>
@@ -19,12 +19,12 @@
 	<cfargument name="executeArgs" type="struct" required="false" default="#StructNew()#">
 	<cfargument name="timeout" type="numeric" required="false" default="30">
 	<cfset var loc = {}>
-	<cfset loc.returnValue = $invoke(method=arguments.condition, argumentCollection=arguments.conditionArgs)>
+	<cfset loc.returnValue = $invoke(method=arguments.condition, invokeArgs=arguments.conditionArgs)>
 	<cfif IsBoolean(loc.returnValue) AND NOT loc.returnValue>
 		<cflock name="#arguments.name#" timeout="#arguments.timeout#">
-			<cfset loc.returnValue = $invoke(method=arguments.condition, argumentCollection=arguments.conditionArgs)>
+			<cfset loc.returnValue = $invoke(method=arguments.condition, invokeArgs=arguments.conditionArgs)>
 			<cfif IsBoolean(loc.returnValue) AND NOT loc.returnValue>
-				<cfset loc.returnValue = $invoke(method=arguments.execute, argumentCollection=arguments.executeArgs)>
+				<cfset loc.returnValue = $invoke(method=arguments.execute, invokeArgs=arguments.executeArgs)>
 			</cfif>
 		</cflock>
 	</cfif>
@@ -167,6 +167,10 @@
 		<!--- this is done so that we can call dynamic methods via "onMissingMethod" on the object (we need to pass in the object for this so it can call methods on the "this" scope instead) --->
 		<cfset arguments.component = this>
 	</cfif>
+	<cfif StructKeyExists(arguments, "invokeArgs")>
+		<cfset arguments.argumentCollection = arguments.invokeArgs>
+		<cfset StructDelete(arguments, "invokeArgs")>
+	</cfif>
 	<cfinvoke attributeCollection="#arguments#">
 	<cfif StructKeyExists(loc, "returnValue")>
 		<cfreturn loc.returnValue>
@@ -193,12 +197,6 @@
 <cffunction name="$dbinfo" returntype="any" access="public" output="false">
 	<cfset var loc = {}>
 	<cfset arguments.name = "loc.returnValue">
-	<cfif NOT Len(arguments.username)>
-		<cfset StructDelete(arguments, "username")>
-	</cfif>
-	<cfif NOT Len(arguments.password)>
-		<cfset StructDelete(arguments, "password")>
-	</cfif>
 	<cfdbinfo attributeCollection="#arguments#">
 	<cfreturn loc.returnValue>
 </cffunction>
@@ -226,4 +224,13 @@
 	<cfif StructKeyExists(loc, "output")>
 		<cfreturn loc.output>
 	</cfif>
+</cffunction>
+
+<cffunction name="$structDelete" returntype="void" access="public" output="false">
+	<cfargument name="myStruct" type="struct" required="true">
+	<cfargument name="keys" type="string" required="true">
+	<cfset var loc = {}>
+	<cfloop list="#arguments.keys#" index="loc.i">
+		<cfset StructDelete(arguments.myStruct, loc.i, false)>
+	</cfloop>
 </cffunction>

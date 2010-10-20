@@ -5,6 +5,9 @@
 		// abort if called from incorrect file
 		$abortInvalidRequest();
 
+		// setup the wheels storage struct for the current request
+		$initializeRequestScope();
+
 		// set or reset all settings but make sure to pass along the reload password between forced reloads with "reload=x"
 		if (StructKeyExists(application, "wheels") && StructKeyExists(application.wheels, "reloadPassword"))
 			loc.oldReloadPassword = application.wheels.reloadPassword;
@@ -18,7 +21,7 @@
 		{
 			application.wheels.serverName = "Railo";
 			application.wheels.serverVersion = server.railo.version;
-			loc.minimumServerVersion = "3.1.2.018";
+			loc.minimumServerVersion = "3.1.2.020";
 		}
 		else
 		{
@@ -36,7 +39,7 @@
 		request.cgi = $cgiScope();
 
 		// set up containers for routes, caches, settings etc
-		application.wheels.version = "1.1 Beta 1";
+		application.wheels.version = "1.1 Beta 2";
 		application.wheels.controllers = {};
 		application.wheels.models = {};
 		application.wheels.existingHelperFiles = "";
@@ -84,12 +87,6 @@
 		// load wheels settings
 		$include(template="wheels/events/onapplicationstart/settings.cfm");
 
-		// set a default (can be overridden in developer settings below) for whether or not to show the links in the debug area to run tests
-		if (DirectoryExists(GetDirectoryFromPath(GetBaseTemplatePath()) & "wheels/tests"))
-			application.wheels.enableTests = true;
-		else
-			application.wheels.enableTests = false; // the tests folder has been removed (as it will be for official Wheels releases until we support application tests) so we default to not show the links
-
 		// load general developer settings first, then override with environment specific ones
 		$include(template="#application.wheels.configPath#/settings.cfm");
 		$include(template="#application.wheels.configPath#/#application.wheels.environment#/settings.cfm");
@@ -98,8 +95,6 @@
 		{
 			$objectcache(action="clear");
 		}
-
-		$loadRoutes();
 
 		// add all public controller / view methods to a list of methods that you should not be allowed to call as a controller action from the url
 		loc.allowedGlobalMethods = "get,set,addroute,addDefaultRoutes";
@@ -115,10 +110,13 @@
 
 		// reload the plugins each time we reload the application
 		$loadPlugins();
-
+		
 		// allow developers to inject plugins into the application variables scope
 		if (!StructIsEmpty(application.wheels.mixins))
 			$include(template="wheels/plugins/injection.cfm");
+
+		// load developer routes and adds the default wheels routes (unless the developer has specified not to)
+		$loadRoutes();
 
 		// create the dispatcher that will handle all incoming requests
 		application.wheels.dispatch = $createObjectFromRoot(path="wheels", fileName="Dispatch", method="$init");

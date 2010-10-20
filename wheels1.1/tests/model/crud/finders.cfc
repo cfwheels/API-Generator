@@ -21,7 +21,7 @@
 	</cffunction>
 
  	<cffunction name="test_findByKey">
-		<cfset loc.e = loc.user.findOne(where="lastname = 'petruzzi'")>
+		<cfset loc.e = loc.user.findOne(where="lastname = 'Petruzzi'")>
 		<cfset loc.q = loc.user.findByKey(loc.e.id)>
 		<cfset assert('loc.q.id eq loc.e.id')>
 	</cffunction>
@@ -42,7 +42,7 @@
 	</cffunction>
 
  	<cffunction name="test_findOne">
-		<cfset loc.e = loc.user.findOne(where="lastname = 'petruzzi'")>
+		<cfset loc.e = loc.user.findOne(where="lastname = 'Petruzzi'")>
 		<cfset assert('isobject(loc.e)')>
 	</cffunction>
 
@@ -57,7 +57,7 @@
 	</cffunction>
 
 	<cffunction name="test_findOne_returns_false_when_record_not_found_with_inner_join_include">
-		<cfset loc.e = loc.user.findOne(where="lastname= = 'somenamenotfound'", include="photogalleries") />
+		<cfset loc.e = loc.user.findOne(where="lastname= = 'somenamenotfound'", include="galleries") />
 		<cfset assert('loc.e eq false')>
 	</cffunction>
 
@@ -69,9 +69,9 @@
  	<cffunction name="test_findAll">
 		<cfset loc.q = loc.user.findAll()>
 		<cfset assert('loc.q.recordcount eq 5')>
-		<cfset loc.q = loc.user.findAll(where="lastname = 'petruzzi' OR lastname = 'peters'", order="lastname")>
+		<cfset loc.q = loc.user.findAll(where="lastname = 'Petruzzi' OR lastname = 'Peters'", order="lastname")>
 		<cfset assert('loc.q.recordcount eq 2')>
-		<cfset assert('valuelist(loc.q.lastname) eq "peters,petruzzi"')>
+		<cfset assert('valuelist(loc.q.lastname) eq "peters,Petruzzi"')>
 	</cffunction>
 
 	<cffunction name="test_findAllByXXX">
@@ -120,19 +120,19 @@
 		<cfset debug('loc.q', false)>
 		<cfset assert('loc.q eq loc.r')> --->
 	</cffunction>
-	
+
 	<cffunction name="test_findAll_returnAs_query_noRecords_returns_correct_type">
 		<cfset loc.q = loc.user.findAll(where="id = 0", returnas="query")>
 		<cfset debug('loc.q', false)>
 		<cfset assert('isquery(loc.q) and loc.q.recordcount eq 0')>
 	</cffunction>
-	
+
 	<cffunction name="test_findAll_returnAs_structs_noRecords_returns_correct_type">
 		<cfset loc.q = loc.user.findAll(where="id = 0", returnAs="structs")>
 		<cfset debug('loc.q', false)>
 		<cfset assert('isarray(loc.q) and arrayisempty(loc.q)')>
 	</cffunction>
-	
+
 	<cffunction name="test_findAll_returnAs_objects_noRecords_returns_correct_type">
 		<cfset loc.q = loc.user.findAll(where="id = 0", returnas="objects")>
 		<cfset debug('loc.q', false)>
@@ -147,7 +147,7 @@
 	</cffunction>
 
 	<cffunction name="test_exists_by_key_valid">
-		<cfset loc.e = loc.user.findOne(where="lastname = 'petruzzi'")>
+		<cfset loc.e = loc.user.findOne(where="lastname = 'Petruzzi'")>
 		<cfset loc.r = loc.user.exists(loc.e.id)>
 		<cfset assert('loc.r eq true')>
 	</cffunction>
@@ -158,7 +158,7 @@
 	</cffunction>
 
 	<cffunction name="test_exists_by_where_one_record_valid">
-		<cfset loc.r = loc.user.exists(where="lastname = 'petruzzi'")>
+		<cfset loc.r = loc.user.exists(where="lastname = 'Petruzzi'")>
 		<cfset assert('loc.r eq true')>
 	</cffunction>
 

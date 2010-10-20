@@ -1,10 +1,251 @@
-<!--- reset all tables --->
-<cfloop list="user,photogallery,photogalleryphoto,author,post,city,shop,profile" index="loc.i">
-	<cfset model(loc.i).deleteAll(instantiate=false, softDelete=false, includeSoftDeletes=true)>
+<!--- get the version of the database we're running against --->
+<cfdbinfo name="loc.dbinfo" datasource="#application.wheels.dataSourceName#" type="version">
+<cfset loc.db = LCase(Replace(loc.dbinfo.database_productname, " ", "", "all"))>
+
+<!--- handle differences in database for identity inserts, column types etc--->
+<cfset loc.storageEngine = "">
+<cfset loc.dateTimeColumnType = "datetime">
+<cfset loc.dateTimeDefault = "'2000-01-01 18:26:08.690'">
+<cfset loc.binaryColumnType = "blob">
+<cfset loc.textColumnType = "text">
+<cfset loc.intColumnType = "int">
+<cfset loc.floatColumnType = "float">
+<cfset loc.identityColumnType = "">
+
+<cfif loc.db IS "microsoftsqlserver">
+	<cfset loc.identityColumnType = "int NOT NULL IDENTITY(1,1)">
+	<cfset loc.binaryColumnType = "image">
+<cfelseif loc.db IS "mysql">
+	<cfset loc.identityColumnType = "int NOT NULL AUTO_INCREMENT">
+	<cfset loc.storageEngine = "ENGINE=InnoDB">
+<cfelseif loc.db IS "h2">
+	<cfset loc.identityColumnType = "int NOT NULL IDENTITY">
+<cfelseif loc.db IS "postgresql">
+	<cfset loc.identityColumnType = "SERIAL NOT NULL">
+	<cfset loc.dateTimeColumnType = "timestamp">
+	<cfset loc.binaryColumnType = "bytea">
+<cfelseif loc.db IS "oracle">
+	<cfset loc.identityColumnType = "number(38,0) NOT NULL">
+	<cfset loc.dateTimeColumnType = "timestamp">
+	<cfset loc.textColumnType = "varchar2(4000)">
+	<cfset loc.intColumnType = "number(38,0)">
+	<cfset loc.floatColumnType = "number(38,2)">
+	<cfset loc.dateTimeDefault = "to_timestamp(#loc.dateTimeDefault#,'yyyy-dd-mm hh24:mi:ss.FF')">
+</cfif>
+
+<!--- get a listing of all the tables and view in the database --->
+<cfdbinfo name="loc.dbinfo" datasource="#application.wheels.dataSourceName#" type="tables">
+<cfset loc.tableList = ValueList(loc.dbinfo.table_name, chr(7))>
+
+<!--- list of tables to delete --->
+<cfset loc.tables = "authors,cities,classifications,comments,galleries,photos,posts,profiles,shops,tags,users,collisiontests">
+<cfloop list="#loc.tables#" index="loc.i">
+	<cfif ListFindNoCase(loc.tableList, loc.i, chr(7))>
+		<cftry>
+			<cfquery name="loc.query" datasource="#application.wheels.dataSourceName#">
+			DROP TABLE #loc.i#
+			</cfquery>
+			<cfcatch>
+			</cfcatch>
+		</cftry>
+	</cfif>
 </cfloop>
 
+<!--- list of views to delete --->
+<cfset loc.views = "userphotos">
+<cfloop list="#loc.views#" index="loc.i">
+	<cfif ListFindNoCase(loc.tableList, loc.i, chr(7))>
+		<cftry>
+			<cfquery name="loc.query" datasource="#application.wheels.dataSourceName#">
+			DROP VIEW #loc.i#
+			</cfquery>
+			<cfcatch>
+			</cfcatch>
+		</cftry>
+	</cfif>
+</cfloop>
+
+<!---
+create tables
+ --->
+<cfquery name="loc.query" datasource="#application.wheels.dataSourceName#">
+CREATE TABLE authors
+(
+	id #loc.identityColumnType#
+	,firstname varchar(100) NOT NULL
+	,lastname varchar(100) NOT NULL
+	,PRIMARY KEY(id)
+) #loc.storageEngine#
+</cfquery>
+
+<cfquery name="loc.query" datasource="#application.wheels.dataSourceName#">
+CREATE TABLE cities
+(
+	countyid char(4) NOT NULL
+	,citycode #loc.intColumnType# NOT NULL
+	,name varchar(50) NOT NULL
+	,PRIMARY KEY(countyid,citycode)
+) #loc.storageEngine#
+</cfquery>
+
+<cfquery name="loc.query" datasource="#application.wheels.dataSourceName#">
+CREATE TABLE classifications
+(
+	id #loc.identityColumnType#
+	,postid #loc.intColumnType# NOT NULL
+	,tagid #loc.intColumnType# NOT NULL
+	,PRIMARY KEY(id)
+) #loc.storageEngine#
+</cfquery>
+
+<cfquery name="loc.query" datasource="#application.wheels.dataSourceName#">
+CREATE TABLE collisiontests
+(
+	id #loc.identityColumnType#
+	,method varchar(100) NOT NULL
+	,PRIMARY KEY(id)
+) #loc.storageEngine#
+</cfquery>
+
+<cfquery name="loc.query" datasource="#application.wheels.dataSourceName#">
+CREATE TABLE comments
+(
+	id #loc.identityColumnType#
+	,postid #loc.intColumnType# NOT NULL
+	,body #loc.textColumnType# NOT NULL
+	,name varchar(100) NOT NULL
+	,url varchar(100) NULL
+	,email varchar(100) NULL
+	,createdat #loc.datetimeColumnType# NOT NULL
+	,PRIMARY KEY(id)
+) #loc.storageEngine#
+</cfquery>
+
+<cfquery name="loc.query" datasource="#application.wheels.dataSourceName#">
+CREATE TABLE galleries
+(
+	id #loc.identityColumnType#
+	,userid #loc.intColumnType# NOT NULL
+	,title varchar(255) NOT NULL
+	,description #loc.textColumnType# NOT NULL
+	,PRIMARY KEY(id)
+) #loc.storageEngine#
+</cfquery>
+
+<cfquery name="loc.query" datasource="#application.wheels.dataSourceName#">
+CREATE TABLE photos
+(
+	id #loc.identityColumnType#
+	,galleryid #loc.intColumnType# NOT NULL
+	,filename varchar(255) NOT NULL
+	,description varchar(255) NOT NULL
+	,filedata #loc.binaryColumnType# NULL
+	,PRIMARY KEY(id)
+) #loc.storageEngine#
+</cfquery>
+
+<cfquery name="loc.query" datasource="#application.wheels.dataSourceName#">
+CREATE TABLE posts
+(
+	id #loc.identityColumnType#
+	,authorid #loc.intColumnType# NULL
+	,title varchar(250) NOT NULL
+	,body #loc.textColumnType# NOT NULL
+	,createdat #loc.datetimeColumnType# NOT NULL
+	,updatedat #loc.datetimeColumnType# NOT NULL
+	,deletedat #loc.datetimeColumnType# NULL
+	,views #loc.intColumnType# DEFAULT 0 NOT NULL
+	,averagerating #loc.floatColumnType# NULL
+	,PRIMARY KEY(id)
+) #loc.storageEngine#
+</cfquery>
+
+<cfquery name="loc.query" datasource="#application.wheels.dataSourceName#">
+CREATE TABLE profiles
+(
+	id #loc.identityColumnType#
+	,authorid #loc.intColumnType# NULL
+	,dateofbirth #loc.datetimeColumnType# NOT NULL
+	,bio #loc.textColumnType# NULL
+	,PRIMARY KEY(id)
+) #loc.storageEngine#
+</cfquery>
+
+<cfquery name="loc.query" datasource="#application.wheels.dataSourceName#">
+CREATE TABLE shops
+(
+	shopid char(9) NOT NULL
+	,citycode #loc.intColumnType# NULL
+	,name varchar(80) NOT NULL
+	,PRIMARY KEY(shopid)
+) #loc.storageEngine#
+</cfquery>
+
+<cfquery name="loc.query" datasource="#application.wheels.dataSourceName#">
+CREATE TABLE tags
+(
+	id #loc.identityColumnType#
+	,name varchar(50) NOT NULL
+	,description varchar(50) NULL
+	,PRIMARY KEY(id)
+) #loc.storageEngine#
+</cfquery>
+
+<cfquery name="loc.query" datasource="#application.wheels.dataSourceName#">
+CREATE TABLE users
+(
+	id #loc.identityColumnType#
+	,username varchar(50) NOT NULL
+	,password varchar(50) NOT NULL
+	,firstname varchar(50) NOT NULL
+	,lastname varchar(50) NOT NULL
+	,address varchar(100) NULL
+	,city varchar(50) NULL
+	,state char(2) NULL
+	,zipcode varchar(50) NULL
+	,phone varchar(20) NULL
+	,fax varchar(20) NULL
+	,birthday #loc.datetimeColumnType# NULL
+	,birthdaymonth #loc.intColumnType# NULL
+	,birthdayyear #loc.intColumnType# NULL
+	,birthtime #loc.datetimeColumnType# DEFAULT #PreserveSingleQuotes(loc.dateTimeDefault)# NULL
+	,isactive #loc.intColumnType# NULL
+	,PRIMARY KEY(id)
+) #loc.storageEngine#
+</cfquery>
+
+<!--- create oracle sequences --->
+<cfif loc.db eq "oracle">
+	<cfloop list="#loc.tables#" index="loc.i">
+		<cfif !ListFindNoCase("cities,shops", loc.i)>
+			<cfset loc.seq = "#loc.i#_seq">
+			<cftry>
+			<cfquery name="loc.query" datasource="#application.wheels.dataSourceName#">
+			DROP SEQUENCE #loc.seq#
+			</cfquery>
+			<cfcatch></cfcatch>
+			</cftry>
+			<cfquery name="loc.query" datasource="#application.wheels.dataSourceName#">
+			CREATE SEQUENCE #loc.seq# START WITH 1 INCREMENT BY 1
+			</cfquery>
+			<cfquery name="loc.query" datasource="#application.wheels.dataSourceName#">
+			CREATE TRIGGER bi_#loc.i# BEFORE INSERT ON #loc.i# FOR EACH ROW BEGIN SELECT #loc.i#_seq.nextval INTO :NEW.<cfif loc.i IS "photogalleries">photogalleryid<cfelseif loc.i IS "photogalleryphotos">photogalleryphotoid<cfelse>id</cfif> FROM dual; END;
+			</cfquery>
+		</cfif>
+	</cfloop>
+</cfif>
+
+<!---
+create views
+ --->
+<cfquery name="loc.query" datasource="#application.wheels.dataSourceName#">
+CREATE VIEW userphotos AS
+SELECT u.id AS userid, u.username AS username, u.firstname AS firstname, u.lastname AS lastname, g.title AS title, g.id AS galleryid
+FROM users u INNER JOIN galleries g ON u.id = g.userid
+</cfquery>
+
 <!--- populate with data --->
-<cfset loc.user = model("user").create(
+<cfset loc.user = model("USER").create(
 	username='tonyp'
 	,password='tonyp123'
 	,firstname='Tony'
@@ -18,7 +259,7 @@
 	,birthday='11/01/1975'
 	,birthdaymonth=11
 	,birthdayyear=1975
-	,isactive=true
+	,isactive=1
 )>
 
 <cfset loc.user = model("user").create(
@@ -35,7 +276,7 @@
 	,birthday='10/05/1972'
 	,birthdaymonth=10
 	,birthdayyear=1972
-	,isactive=true
+	,isactive=1
 )>
 
 <cfset loc.user = model("user").create(
@@ -52,7 +293,7 @@
 	,birthday='09/12/1973'
 	,birthdaymonth=9
 	,birthdayyear=1973
-	,isactive=true
+	,isactive=1
 )>
 
 <cfset loc.user = model("user").create(
@@ -69,7 +310,7 @@
 	,birthday='06/14/1981'
 	,birthdaymonth=6
 	,birthdayyear=1981
-	,isactive=true
+	,isactive=1
 )>
 
 <cfset loc.user = model("user").create(
@@ -86,7 +327,7 @@
 	,birthday='11/12/1973'
 	,birthdaymonth=11
 	,birthdayyear=1973
-	,isactive=true
+	,isactive=1
 )>
 
 <cfset loc.per = model("author").create(firstName="Per", lastName="Djurner")>
@@ -102,27 +343,27 @@
 <cfset loc.raul = model("author").create(firstName="Raul", lastName="Riera")>
 <cfset loc.andy = model("author").create(firstName="Andy", lastName="Bellenie")>
 
-<cfset loc.users = model("user").findAll()>
+<cfset loc.users = model("user").findAll(order="id")>
 
 <cfloop query="loc.users">
 	<cfloop from="1" to="5" index="loc.i">
-		<cfset loc.gallery = model("photogallery").create(
+		<cfset loc.gallery = model("gallery").create(
 			userid="#loc.users.id#"
 			,title="#loc.users.firstname# Test Galllery #loc.i#"
 			,description="test gallery #loc.i# for #loc.users.firstname#"
 		)>
 
 		<cfloop from="1" to="10" index="loc.i2">
-			<cfset loc.photo = model("photogalleryphoto").create(
-				photogalleryid="#loc.gallery.photogalleryid#"
-				,filename="Gallery #loc.gallery.photogalleryid# Photo Test #loc.i2#"
-				,description1="test photo #loc.i2# for gallery #loc.gallery.photogalleryid#"
+			<cfset loc.photo = model("photo").create(
+				galleryid="#loc.gallery.id#"
+				,filename="Gallery #loc.gallery.id# Photo Test #loc.i2#"
+				,description1="test photo #loc.i2# for gallery #loc.gallery.id#"
 			)>
 		</cfloop>
 	</cfloop>
 </cfloop>
 
-<cfset loc.posts = model("post").findAll()>
+<cfset loc.posts = model("post").findAll(order="id")>
 
 <cfloop query="loc.posts">
 	<cfloop from="1" to="3" index="loc.i">
@@ -151,11 +392,13 @@
 	)>
 </cfloop>
 
-<cfquery name="del" datasource="wheelstestdb">
-DELETE
-FROM tags
-</cfquery>
-<cfquery name="ins" datasource="wheelstestdb">
-INSERT INTO tags (name, description)
-VALUES ('releases', 'testdesc')
-</cfquery>
+<!--- tags --->
+<cfset model("tag").create(
+	name="releases"
+	,description="testdesc"
+)>
+
+<!--- collisiontests --->
+<cfset model("collisiontest").create(
+	method="test"
+)>

@@ -20,7 +20,7 @@
 	<cfargument name="endYear" type="numeric" required="false" hint="See documentation for @dateSelect.">
 	<cfargument name="monthDisplay" type="string" required="false" hint="See documentation for @dateSelect.">
 	<cfargument name="includeBlank" type="any" required="false" hint="See documentation for @dateSelect.">
-	<cfargument name="label" type="string" required="false" hint="See documentation for @textField.">
+	<cfargument name="label" type="string" required="false" hint="See documentation for @textField. The label will be applied to all `select` tags but you can pass in a list to cutomize each one individually.">
 	<cfargument name="labelPlacement" type="string" required="false" hint="See documentation for @textField.">
 	<cfargument name="prepend" type="string" required="false" hint="See documentation for @textField.">
 	<cfargument name="append" type="string" required="false" hint="See documentation for @textField.">
@@ -59,7 +59,7 @@
 	<cfargument name="separator" type="string" required="false" hint="See documentation for @timeSelect.">
 	<cfargument name="minuteStep" type="numeric" required="false" hint="See documentation for @timeSelect.">
 	<cfargument name="includeBlank" type="any" required="false" hint="See documentation for @timeSelect.">
-	<cfargument name="label" type="string" required="false" hint="See documentation for @textField.">
+	<cfargument name="label" type="string" required="false" hint="See documentation for @textField. The label will be applied to all `select` tags but you can pass in a list to cutomize each one individually.">
 	<cfargument name="labelPlacement" type="string" required="false" hint="See documentation for @textField.">
 	<cfargument name="prepend" type="string" required="false" hint="See documentation for @textField.">
 	<cfargument name="append" type="string" required="false" hint="See documentation for @textField.">
@@ -105,7 +105,7 @@
 	<cfargument name="minuteStep" type="numeric" required="false" hint="See documentation for @dateTimeSelect.">
 	<cfargument name="separator" type="string" required="false" hint="See documentation for @dateTimeSelect.">
 	<cfargument name="includeBlank" type="any" required="false" hint="See documentation for @select.">
-	<cfargument name="label" type="string" required="false" hint="See documentation for @textField.">
+	<cfargument name="label" type="string" required="false" hint="See documentation for @textField. The label will be applied to all `select` tags but you can pass in a list to cutomize each one individually.">
 	<cfargument name="labelPlacement" type="string" required="false" hint="See documentation for @textField.">
 	<cfargument name="prepend" type="string" required="false" hint="See documentation for @textField.">
 	<cfargument name="append" type="string" required="false" hint="See documentation for @textField.">
@@ -118,15 +118,28 @@
 		$args(name="dateTimeSelectTags", args=arguments);
 		loc.returnValue = "";
 		loc.separator = arguments.separator;
+		loc.label = arguments.label;
+
+		// create date portion
 		arguments.order = arguments.dateOrder;
 		arguments.separator = arguments.dateSeparator;
+		// when a list of 6 elements has been passed in as labels we assume the first 3 are meant to be placed on the date related tags
+		if (ListLen(loc.label) == 6)
+			arguments.label = ListGetAt(loc.label, 1) & "," & ListGetAt(loc.label, 2) & "," & ListGetAt(loc.label, 3);
 		if (StructKeyExists(arguments, "$functionName") && arguments.$functionName == "dateTimeSelect")
 			loc.returnValue = loc.returnValue & dateSelect(argumentCollection=arguments);
 		else
 			loc.returnValue = loc.returnValue & dateSelectTags(argumentCollection=arguments);
+
+		// separate date and time with a string ("-" by default)
 		loc.returnValue = loc.returnValue & loc.separator;
+
+		// create time portion
 		arguments.order = arguments.timeOrder;
 		arguments.separator = arguments.timeSeparator;
+		// when a list of 6 elements has been passed in as labels we assume the last 3 are meant to be placed on the time related tags
+		if (ListLen(loc.label) == 6)
+			arguments.label = ListGetAt(loc.label, 4) & "," & ListGetAt(loc.label, 5) & "," & ListGetAt(loc.label, 6);
 		if (StructKeyExists(arguments, "$functionName") && arguments.$functionName == "dateTimeSelect")
 			loc.returnValue = loc.returnValue & timeSelect(argumentCollection=arguments);
 		else

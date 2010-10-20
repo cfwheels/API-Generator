@@ -10,10 +10,12 @@
 		<cfset hasMany("relatedFunctions")>
 		<cfset belongsTo(name="parentFunctionSectionId", class="functionSection", foreignKey="parentFunctionSectionId")>
 		<cfset belongsTo(name="childFunctionSectionId", class="functionSection", foreignKey="childFunctionSectionId")>
+		
 		<!--- Validations --->
 		<cfset validatesPresenceOf("name,wheelsVersion,returnType,hint,examples")>
 		<cfset validatesNumericalityOf("parentFunctionSectionId")>
 		<cfset validatesNumericalityOf(property="childFunctionSectionId", allowBlank=true)>
+		
 		<!--- Callbacks --->
 		<cfset beforeValidation("processCategories")>
 		<cfset beforeSave("cleanExamples")>
@@ -27,19 +29,124 @@
 		<cfargument name="version" type="string" hint="Wheels version.">
 		
 		<cfset var loc = {}>
-		<cfset loc.parameters = model("functionArgument").findAll(returnAs="objects")>
-		<cfset loc.functions = model("function").findAll(where="wheelsVersion='#arguments.version#'")>
-		<cfset loc.parametersQuery = model("functionArgument").findAll()>
+		<cfset var functions = "">
+		<cfset loc.parameters = model("functionArgument").findAll(returnAs="objects", reload=true)>
+		<cfset functions = model("function").findAll(where="wheelsVersion='#arguments.version#'", reload=true)>
+		<cfset loc.parametersQuery = model("functionArgument").findAll(where="functionId IN (#ValueList(functions.id)#)", reload=true)>
 		
 		<!--- Replace "See documentation for @..." references with intended documentation --->
 		<cfloop array="#loc.parameters#" index="loc.parameter">
-			<cfset loc.parameter = cleanHint(loc.parameter, loc.functions, loc.parametersQuery)>
+			<cfset loc.parameter = cleanHint(loc.parameter, functions, loc.parametersQuery)>
 			<cfif loc.parameter.hasChanged()>
 				<cfset loc.parameter.save()>
 			</cfif>
 		</cfloop>
 	
 	</cffunction>
+	
+	<!----------------------------------------------------->
+	
+	<cffunction name="generateFunctionsFromScope" hint="Generates a batch of functions based on scope and function names.">
+		<cfargument name="scope" hint="Structure containing functions to process.">
+		<cfargument name="version" type="string" hint="Version to store in DB.">
+		<cfargument name="functionsGenerated" type="array" required="false" default="#ArrayNew(1)#" hint="Functions already generated in this operation that can be safely skipped to avoid duplicates.">
+	
+		<cfset var loc = {}>
+		<cfset loc.functionList = StructKeyList(arguments.scope)>
+		<cfset loc.saveStatus = []>
+		<cfset loc.saveStatusItem = {}>
+		
+		<cfloop list="#loc.functionList#" index="loc.currentFunction">
+			<cfif
+				isApiFunction(loc.currentFunction, arguments.scope)
+				and not isFunctionAlreadyGenerated(arguments.functionsGenerated, loc.currentFunction)
+			>
+				<cfset loc.saveStatusItem = {}>
+				<cfset loc.saveStatusItem.dataError = false>
+				<cftry>
+					<!--- New function object --->
+					<cfset loc.function = model("function").new()>
+					<!--- Parse function metadata --->
+					<cfset loc.functionData = GetMetaData(arguments.scope[loc.currentFunction])>
+					<!--- Set properties --->
+					<!--- Name --->
+					<cfset loc.saveStatusItem.name = loc.currentFunction>
+					<cfset loc.function.name = loc.functionData.name>
+					<!--- Return type --->
+					<cfif StructKeyExists(loc.functionData, "returnType")>
+						<cfset loc.function.returnType = loc.functionData.returnType>
+						<cfset loc.saveStatusItem.returnType = loc.functionData.returnType>
+					</cfif>
+					<!--- Hint --->
+					<cfset loc.function.hint = loc.functionData.hint>
+					<cfset loc.saveStatusItem.hint = loc.functionData.hint>
+					<!--- Examples --->
+					<cfset loc.function.examples = loc.functionData.examples>
+					<cfset loc.saveStatusItem.examples = loc.functionData.examples>
+					<!--- Categories --->
+					<cfset loc.function.categories = loc.functionData.categories>
+					<cfset loc.saveStatusItem.categories = loc.functionData.categories>
+					<!--- Chapters --->
+					<cfif StructKeyExists(loc.functionData, "chapters")>
+						<cfset loc.function.chapters = loc.functionData.chapters>
+						<cfset loc.saveStatusItem.chapters = loc.functionData.chapters>
+					</cfif>
+					<!--- Functions --->
+					<cfif StructKeyExists(loc.functionData, "functions")>
+						<cfset loc.function.functions = loc.functionData.functions>
+						<cfset loc.saveStatusItem.functions = loc.functionData.functions>
+					</cfif>
+					<!--- Version --->
+					<cfset loc.function.wheelsVersion = arguments.version>
+					<!--- Parameters --->
+					<cfif StructKeyExists(loc.functionData, "parameters")>
+						<cfset loc.function.parameters = loc.functionData.parameters>
+						<cfset loc.saveStatusItem.parameters = loc.functionData.parameters>
+					</cfif>
+					<!--- Catch errors --->
+					<cfcatch type="any">
+						<cfset loc.saveStatusItem.dataError = true>
+					</cfcatch>
+				</cftry>
+				
+				<!--- Try saving data --->
+				<cftry>
+					<cfset loc.result = loc.function.save()>
+					<cfif loc.result>
+						<cfset loc.saveStatusItem.saveError = false>
+					<cfelse>
+						<cfset loc.saveStatusItem.saveError = true>
+					</cfif>
+					
+					<cfcatch>
+						<cfset loc.saveStatusItem.saveError = true>
+					</cfcatch>
+				</cftry>
+			
+				<!--- Save what was collected about status item --->
+				<cfset ArrayAppend(loc.saveStatus, loc.saveStatusItem)>
+			</cfif>
+		</cfloop>
+		
+		<cfreturn loc.saveStatus>
+		
+	</cffunction>
+	
+	<!----------------------------------------------------->
+	
+	<cffunction name="isApiFunction" returntype="boolean" hint="Whether or not the given function is a Wheels API function.">
+		<cfargument name="functionName" type="string" hint="Name of function to check.">
+		<cfargument name="functionScope" type="struct" hint="Struct containing functions.">
+		
+		<cfreturn
+			not ListContainsNoCase("id,onMissingMethod", arguments.functionName, ",")
+			and IsCustomFunction(arguments.functionScope[arguments.functionName])
+			and Left(arguments.functionName, 1) is not "$"
+			and StructKeyExists(GetMetaData(arguments.functionScope[arguments.functionName]), "hint")
+		>
+	
+	</cffunction>
+	
 	
 	<!----------------------------------------------------->
 	<!--- Callbacks --->
@@ -122,7 +229,7 @@
 	<cffunction name="saveRelatedFunctions" access="private" hint="Saves related functions set in the functions list.">
 	
 		<cfset var loc = {}>
-	
+		
 		<cfif StructKeyExists(this, "functions")>
 			<cfloop list="#this.functions#" index="loc.functionName" delimiters=",">
 				<cfset loc.function = model("function").findOneByName(loc.functionName)>
@@ -131,6 +238,7 @@
 		</cfif>
 	
 	</cffunction>
+	
 	
 	<!----------------------------------------------------->
 	<!--- Private --->
@@ -142,10 +250,9 @@
 		
 		<cfset var loc = {}>
 		
-		<cfif Left(arguments.parameter.hint, 23) is "See documentation for @">
+		<cfif Left(Trim(arguments.parameter.hint), 23) is "See documentation for @">
 			<cfset loc.referenceFunction = Replace(arguments.parameter.hint, ".", "")>
 			<cfset loc.referenceFunction = Right(loc.referenceFunction, Len(loc.referenceFunction) - 23)>
-			<cfdump var="#loc.referencFunction#">
 			<!--- Get reference function ID from memory --->
 			<cfquery dbtype="query" name="loc.function">
 				SELECT
@@ -166,7 +273,7 @@
 						name = '#arguments.parameter.name#'
 						AND functionId = #loc.function.id#
 				</cfquery>
-				<!--- Update parameter to use reference function's parameter's hint --->
+				<!--- Update parameter to use hint from reference function's parameter --->
 				<cfset arguments.parameter.hint = loc.referenceParameter.hint>
 			<!--- If the hint doesn't exist, then show error --->
 			<cfelse>
@@ -176,6 +283,26 @@
 		
 		<cfreturn arguments.parameter>
 	
+	</cffunction>
+	
+	<!----------------------------------------------------->
+	
+	<cffunction name="isFunctionAlreadyGenerated" access="private" returntype="boolean" hint="Returns whether or not a given function appears in an array of functions already generated in a previous operation.">
+		<cfargument name="generatedFunctions" type="array" hint="Functions already generated to search through.">
+		<cfargument name="functionName" type="variablename" hint="Name of function to search for.">
+		
+		<cfset var loc = {}>
+		
+		<!--- Search array --->
+		<cfloop array="#arguments.generatedFunctions#" index="loc.function">
+			<cfif LCase(Trim(arguments.functionName)) is LCase(Trim(loc.function.name))>
+				<cfreturn true>
+			</cfif>
+		</cfloop>
+		
+		<!--- If we get here, the function wasn't found --->
+		<cfreturn false>
+		
 	</cffunction>
 	
 	<!----------------------------------------------------->

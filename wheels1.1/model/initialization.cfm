@@ -8,14 +8,14 @@
 		variables.wheels.class = {};
 		variables.wheels.class.modelName = arguments.name;
 		variables.wheels.class.path = arguments.path;
-		
+
 		// if our name has pathing in it, remove it and add it to the end of of the $class.path variable
 		if (Find("/", arguments.name))
 		{
 			variables.wheels.class.modelName = ListLast(arguments.name, "/");
 			variables.wheels.class.path = ListAppend(arguments.path, ListDeleteAt(arguments.name, ListLen(arguments.name, "/"), "/"), "/");
 		}
-		
+
 		variables.wheels.class.RESQLAs = "[[:space:]]AS[[:space:]][A-Za-z1-9]+";
 		variables.wheels.class.RESQLOperators = "((?: (?:NOT )?LIKE)|(?: (?:NOT )?IN)|(?: IS(?: NOT)?)|(?:<>)|(?:<=)|(?:>=)|(?:!=)|(?:!<)|(?:!>)|=|<|>)";
 		variables.wheels.class.RESQLWhere = "(#variables.wheels.class.RESQLOperators# ?)(\('.+?'\)|\((-?[0-9\.],?)+\)|'.+?'()|''|(-?[0-9\.]+)()|NULL)(($|\)| (AND|OR)))";
@@ -46,7 +46,9 @@
 			init();
 
 		// load the database adapter
-		variables.wheels.class.adapter = $createObjectFromRoot(path="#application.wheels.wheelsComponentPath#", fileName="Connection", method="init", datasource="#variables.wheels.class.connection.datasource#", username="#variables.wheels.class.connection.username#", password="#variables.wheels.class.connection.password#");
+		variables.wheels.class.connObj = $createObjectFromRoot(path="#application.wheels.wheelsComponentPath#", fileName="Connection", method="init", datasource="#variables.wheels.class.connection.datasource#", username="#variables.wheels.class.connection.username#", password="#variables.wheels.class.connection.password#");
+		variables.wheels.class.connInfo = variables.wheels.class.connObj.$getConnectionInfo();
+		variables.wheels.class.adapter = variables.wheels.class.connObj.$assignAdapter();
 
 		// get columns for the table
 		loc.columns = variables.wheels.class.adapter.$getColumns(tableName());
@@ -75,10 +77,16 @@
 				// set the info we need for each property
 				variables.wheels.class.properties[loc.property] = {};
 				variables.wheels.class.properties[loc.property].dataType = loc.type;
-				variables.wheels.class.properties[loc.property].type = variables.wheels.class.adapter.$getType(loc.type);
+				variables.wheels.class.properties[loc.property].type = variables.wheels.class.adapter.$getType(loc.type, loc.columns["decimal_digits"][loc.i]);
 				variables.wheels.class.properties[loc.property].column = loc.columns["column_name"][loc.i];
 				variables.wheels.class.properties[loc.property].scale = loc.columns["decimal_digits"][loc.i];
-				variables.wheels.class.properties[loc.property].nullable = trim(loc.columns["is_nullable"][loc.i]);
+
+				// get a boolean value for whether this column can be set to null or not
+				// if we don't get a boolean back we try to translate y/n to proper boolean values in cfml (yes/no)
+				variables.wheels.class.properties[loc.property].nullable = Trim(loc.columns["is_nullable"][loc.i]);
+				if (!IsBoolean(variables.wheels.class.properties[loc.property].nullable))
+					variables.wheels.class.properties[loc.property].nullable = ReplaceList(variables.wheels.class.properties[loc.property].nullable, "N,Y", "No,Yes");
+
 				variables.wheels.class.properties[loc.property].size = loc.columns["column_size"][loc.i];
 				variables.wheels.class.properties[loc.property].label = Humanize(loc.property);
 				variables.wheels.class.properties[loc.property].validationtype = variables.wheels.class.adapter.$getValidationType(variables.wheels.class.properties[loc.property].type);
@@ -185,10 +193,11 @@
 		var loc = {};
 
 		variables.wheels = {};
+		variables.wheels.instance = {};
 		variables.wheels.errors = [];
 		// keep a unique identifier for each model created in case we need it for nested properties
 		variables.wheels.tickCountId = GetTickCount().toString(); // make sure we have it in milliseconds
-		
+
 		// copy class variables from the object in the application scope
 		if (!StructKeyExists(variables.wheels, "class"))
 			variables.wheels.class = $namedReadLock(name="classLock", object=application.wheels.models[arguments.name], method="$classData");

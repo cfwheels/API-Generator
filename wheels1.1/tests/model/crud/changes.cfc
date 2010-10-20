@@ -17,7 +17,7 @@
 	</cffunction>
 
 	<cffunction name="test_allChanges">
-		<cfset loc.author = model("author").findOne()>
+		<cfset loc.author = model("author").findOne(order="id")>
 		<cfset loc.author.firstName = "a">
 		<cfset loc.author.lastName = "b">
 		<cfset loc.compareWith.firstName.changedFrom = "Per">
@@ -127,35 +127,29 @@
 	</cffunction>
 
 	<cffunction name="test_date_compare">
-		<cfset loc.user = model("user").findOne(username = "tonyp")>
+		<cfset loc.user = model("user").findOne(where="username = 'tonyp'")>
 		<cfset loc.user.birthday = "11/01/1975 12:00 AM">
 		<cfset loc.e = loc.user.hasChanged("birthday")>
 		<cfset assert('loc.e eq false')>
 	</cffunction>
-	
+
 	<cffunction name="test_binary_compare">
-		<cfset loc.gallery = model("photogallery").findOne(
-			include="user"
-			,where="users.lastname = 'petruzzi'"
-			,orderby="photogalleryid"
-		)>
-		<cffile action="readbinary" file="#expandpath('wheels/tests/_assets/files/cfwheels-logo.png')#" variable="loc.binaryData">
-		<cftransaction action="begin">
-			<cfset loc.photogalleryphoto = model("PhotoGalleryPhoto").create(
-				photogalleryid="#loc.gallery.photogalleryid#"
-				,filename="somefilename"
-				,fileData=loc.binaryData
-				,description1="something something" 
-			)>
-			<cfset loc.photogalleryphoto = model("PhotoGalleryPhoto").findByKey(loc.photogalleryphoto.photogalleryphotoid)>
-			<cfset loc.photogalleryphoto.fileData = loc.binaryData>
-			<cfset loc.e1 = loc.photogalleryphoto.hasChanged("fileData")>
-			<cfset loc.photogalleryphoto.fileData = "tonyp">
-			<cfset loc.e2 = loc.photogalleryphoto.hasChanged("fileData")>
+		<cftransaction>
+			<cfset loc.photo = model("photo").findOne(order=model("photo").primaryKey())>
+			<cfset assert("NOT loc.photo.hasChanged('fileData')")>
+			<cffile action="readbinary" file="#expandpath('wheels/tests/_assets/files/cfwheels-logo.png')#" variable="loc.binaryData">
+			<cfset loc.photo.fileData = loc.binaryData>
+			<cfset assert("loc.photo.hasChanged('fileData')")>
+			<cfset loc.photo.galleryid = 99>
+			<cfset loc.photo.save()>
+			<cfset assert("NOT loc.photo.hasChanged('fileData')")>
+			<cfset loc.photo = model("photo").findOne(where="galleryid=99")>
+			<cfset assert("NOT loc.photo.hasChanged('fileData')")>
+			<cffile action="readbinary" file="#expandpath('wheels/tests/_assets/files/cfwheels-logo.txt')#" variable="loc.binaryData">
+			<cfset loc.photo.fileData = loc.binaryData>
+			<cfset assert("loc.photo.hasChanged('fileData')")>
 			<cftransaction action="rollback" />
 		</cftransaction>
-		<cfset assert('loc.e1 eq false')>
-		<cfset assert('loc.e2 eq true')>
 	</cffunction>
 
 </cfcomponent>

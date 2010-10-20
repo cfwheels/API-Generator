@@ -1,6 +1,4 @@
-﻿<cfsetting enablecfoutputonly="true">
-
-<cfparam name="controllerSavedItems" type="array">
+﻿<cfparam name="controllerSavedItems" type="array">
 <cfparam name="modelSavedItems" type="array">
 <cfparam name="numFunctions" type="numeric">
 <cfparam name="version" type="string">
@@ -52,5 +50,3 @@
 </table>
 
 </cfoutput>
-
-<cfsetting enablecfoutputonly="false">

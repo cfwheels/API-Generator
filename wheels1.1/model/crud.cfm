@@ -91,12 +91,12 @@
 		<cfset comments = post.comments()>
 	'
 	categories="model-class,read" chapters="reading-records,associations" functions="findByKey,findOne,hasMany">
-	<cfargument name="where" type="string" required="false" default="" hint="This argument maps to the `WHERE` clause of the query. The following operators are supported: `=`, `<>`, `<`, `<=`, `>`, `>=`, `LIKE`, `AND`, and `OR`. (Note that the key words need to be written in upper case.) You can also use parentheses to group statements. You do not need to specify the table name(s); Wheels will do that for you.">
+	<cfargument name="where" type="string" required="false" default="" hint="This argument maps to the `WHERE` clause of the query. The following operators are supported: `=`, `!=`, `<>`, `<`, `<=`, `>`, `>=`, `LIKE`, `NOT LIKE`, `IN`, `NOT IN`, `IS NULL`, `IS NOT NULL`, `AND`, and `OR`. (Note that the key words need to be written in upper case.) You can also use parentheses to group statements. You do not need to specify the table name(s); Wheels will do that for you.">
 	<cfargument name="order" type="string" required="false" hint="Maps to the `ORDER BY` clause of the query. You do not need to specify the table name(s); Wheels will do that for you.">
 	<cfargument name="group" type="string" required="false" hint="Maps to the `GROUP BY` clause of the query. You do not need to specify the table name(s); Wheels will do that for you.">
 	<cfargument name="select" type="string" required="false" default="" hint="Determines how the `SELECT` clause for the query used to return data will look.	You can pass in a list of the properties (which map to columns) that you want returned from your table(s). If you don't set this argument at all, Wheels will select all properties from your table(s). If you specify a table name (e.g. `users.email`) or alias a column (e.g. `fn AS firstName`) in the list, then the entire list will be passed through unchanged and used in the `SELECT` clause of the query. By default, all column names in tables `JOIN`ed via the `include` argument will be prepended with the singular version of the included table name.">
 	<cfargument name="distinct" type="boolean" required="false" default="false" hint="Whether to add the `DISTINCT` keyword to your `SELECT` clause. Wheels will, when necessary, add this automatically (when using pagination and a `hasMany` association is used in the `include` argument, to name one example).">
-	<cfargument name="include" type="string" required="false" default="" hint="Associations that should be included in the query using `INNER` or `LEFT OUTER` joins (which join type that is used depends on how the association has been set up in your model). If all included associations are set on the current model, you can specify them in a list (e.g. `department,addresses,emails`). You can build more complex `include` strings by using parentheses when the association is set on an included model, like `album(artist(genre))`, for example.">
+	<cfargument name="include" type="string" required="false" default="" hint="Associations that should be included in the query using `INNER` or `LEFT OUTER` joins (which join type that is used depends on how the association has been set up in your model). If all included associations are set on the current model, you can specify them in a list (e.g. `department,addresses,emails`). You can build more complex `include` strings by using parentheses when the association is set on an included model, like `album(artist(genre))`, for example. These complex `include` strings only work when `returnAs` is set to `query` though.">
 	<cfargument name="maxRows" type="numeric" required="false" default="-1" hint="Maximum number of records to retrieve. Passed on to the `maxRows` `cfquery` attribute. The default, `-1`, means that all records will be retrieved.">
 	<cfargument name="page" type="numeric" required="false" default=0 hint="If you want to paginate records, you can do so by specifying a page number here. For example, getting records 11-20 would be page number 2 when `perPage` is kept at the default setting (10 records per page). The default, `0`, means that records won't be paginated and that the `perPage`, `count`, and `handle` arguments will be ignored.">
 	<cfargument name="perPage" type="numeric" required="false" hint="When using pagination, you can specify how many records you want to fetch per page here. This argument is only used when the `page` argument has been passed in.">
@@ -114,7 +114,7 @@
 	<cfscript>
 		var loc = {};
 		$args(name="findAll", args=arguments);
-		
+
 		// we only allow direct associations to be loaded when returning objects
 		if (application.wheels.showErrorInformation && Len(arguments.returnAs) && arguments.returnAs != "query" && Find("(", arguments.include) && arguments.returnIncluded)
 			$throw(type="Wheels", message="Incorrect Arguments", extendedInfo="You may only include direct associations to this object when returning an array of objects.");
@@ -124,7 +124,7 @@
 		{
 			if (application.wheels.showErrorInformation && arguments.perPage lte 0)
 				$throw(type="Wheels", message="Incorrect Argument", extendedInfo="The perPage argument should be a positive numeric value.");
-		
+
 			if (Len(arguments.order))
 			{
 				// insert primary keys to order clause unless they are already there, this guarantees that the ordering is unique which is required to make pagination work properly
@@ -246,13 +246,14 @@
 				loc.finderArgs.parameterize = arguments.parameterize;
 				loc.finderArgs.limit = arguments.$limit;
 				loc.finderArgs.offset = arguments.$offset;
+				loc.finderArgs.$primaryKey = primaryKeys();
 				if (application.wheels.cacheQueries && (IsNumeric(arguments.cache) || (IsBoolean(arguments.cache) && arguments.cache)))
 					loc.finderArgs.cachedWithin = $timeSpanForCache(arguments.cache);
 				loc.findAll = variables.wheels.class.adapter.$query(argumentCollection=loc.finderArgs);
 				request.wheels[loc.queryKey] = loc.findAll; // <- store in request cache so we never run the exact same query twice in the same request
 			}
 			request.wheels[$hashedKey(loc.findAll.query)] = variables.wheels.class.modelName; // place an identifer in request scope so we can reference this query when passed in to view functions
-			
+
 			switch (arguments.returnAs)
 			{
 				case "query":
@@ -315,6 +316,10 @@
 	<cfscript>
 		var returnValue = "";
 		$args(name="findByKey", args=arguments);
+		if (Len(arguments.key))
+		{
+			$keyLengthCheck(arguments.key);
+		}
 		// convert primary key column name(s) / value(s) to a WHERE clause that is then used in the findOne call
 		arguments.where = $keyWhereString(values=arguments.key);
 		StructDelete(arguments, "key");
@@ -356,6 +361,19 @@
 	<cfscript>
 		var returnValue = "";
 		$args(name="findOne", args=arguments);
+		if (!Len(arguments.include) || (StructKeyExists(variables.wheels.class.associations, arguments.include) && variables.wheels.class.associations[arguments.include].type != "hasMany"))
+		{
+			// no joins will be done or the join will be done to a single record so we can safely get just one record from the database
+			// note that the check above can be improved to go through the entire include string and check if all associations are "single" (i.e. hasOne or belongsTo)
+			arguments.maxRows = 1;
+		}
+		else
+		{
+			// since we're joining with associated tables (and not to just one record) we could potentially get duplicate records for one object and we work around this by using the pagination code which has this functionality built in
+			arguments.page = 1;
+			arguments.perPage = 1;
+			arguments.count = 1;
+		}
 		returnValue = findAll(argumentCollection=arguments);
 		if (IsArray(returnValue))
 		{
@@ -395,7 +413,7 @@
 		var loc = {};
 		$args(name="updateAll", args=arguments);
 		arguments.properties = $setProperties(argumentCollection=arguments, filterList="where,include,properties,reload,parameterize,instantiate,validate,transaction,callbacks,includeSoftDeletes", setOnModel=false);
-		
+
 		if (arguments.instantiate) // find and instantiate each object and call its update function
 		{
 			loc.returnValue = 0;
@@ -454,6 +472,7 @@
 	<cfscript>
 		var returnValue = "";
 		$args(name="updateByKey", args=arguments);
+		$keyLengthCheck(arguments.key);
 		arguments.where = $keyWhereString(values=arguments.key);
 		StructDelete(arguments, "key");
 		returnValue = updateOne(argumentCollection=arguments);
@@ -561,7 +580,7 @@
 	<cfscript>
 		var loc = {};
 		$args(name="deleteAll", args=arguments);
-		
+
 		if (arguments.instantiate)
 		{
 			loc.returnValue = 0;
@@ -605,6 +624,7 @@
 	<cfscript>
 		var loc = {};
 		$args(name="deleteByKey", args=arguments);
+		$keyLengthCheck(arguments.key);
 		loc.where = $keyWhereString(values=arguments.key);
 		loc.returnValue = deleteOne(where=loc.where, reload=arguments.reload, transaction=arguments.transaction, callbacks=arguments.callbacks, includeSoftDeletes=arguments.includeSoftDeletes, softDelete=arguments.softDelete);
 	</cfscript>
@@ -796,7 +816,7 @@
 	<cfscript>
 		// make sure all of our associations are set properly before saving
 		$setAssociations();
-	
+
 		if ($callback("beforeValidation", arguments.callbacks))
 		{
 			if (isNew())
@@ -990,6 +1010,18 @@
 
 <!--- other --->
 
+<cffunction name="$keyLengthCheck" returntype="void" access="public" output="false"
+	hint="Makes sure that the number of keys passed in is the same as the number of keys defined for the model. If not, an error is raised.">
+	<cfargument name="key" type="any" required="true">
+	<cfscript>
+	if (ListLen(primaryKeys()) != ListLen(arguments.key))
+	{
+		$throw(type="Wheels.InvalidArgumentValue", message="The `key` argument contains an invalid value.", extendedInfo="The `key` argument contains a list, however this table doesn't have a composite key. A list of values is allowed for the `key` argument, but this only applies in the case when the table contains a composite key.");
+	}
+	</cfscript>
+</cffunction>
+
+
 <!---
 	developers can now override this method for localizing dates if they prefer.
 --->
@@ -997,82 +1029,5 @@
 	<cfargument name="property" type="string" required="true" />
 	<cfscript>
 		this[arguments.property] = Now();
-	</cfscript>
-</cffunction>
-
-<cffunction name="setPagination" access="public" output="false" returntype="void" hint="allow you to set a pagination handle for a custom query so you can perform pagination in your view with paginationLinks()"
-	examples=
-	'
-		<!--- In your model (ie. User.cfc), create a custom method for your custom query --->
-		<cffunction name="myCustomQuery">
-			<cfargument name="page" type="numeric" required="true">
-			<cfquery name="customQuery" datasource="##get(''datasourcename'')##">
-			select * from users
-			</cfquery>
-			
-			<cfset setPagination(totalRecords="##customQuery.RecordCount##", currentPage="##arguments.page##", perPage="25", handle="myCustomQueryHandle")>
-			<cfreturn customQuery>
-		</cffunction>
-		
-		<!--- in your view you access using paginationLinks() --->
-		<!--- controller code --->
-		<cfparam name="params.page" default="1">
-		<cfset allUsers = model("user").myCustomQuery(page="##params.page##")>
-
-		<!--- view code --->
-		<ul>
-		    <cfoutput query="allAuthors">
-		        <li>##firstName## ##lastName##</li>
-		    </cfoutput>
-		</ul>
-		<cfoutput>##paginationLinks(handle="myCustomQueryHandle")##</cfoutput>
-	'
-	categories="model-class,miscellaneous" chapters="getting-paginated-data" functions="findAll,paginationLinks">
-	<cfargument name="totalRecords" type="numeric" required="true">
-	<cfargument name="currentPage" type="numeric" required="false" default="1">
-	<cfargument name="perPage" type="numeric" required="false" default="25">
-	<cfargument name="handle" type="string" required="false" default="query">
-	<cfscript>
-		var loc = {};
-		// totalRecords cannot be negative
-		if (arguments.totalRecords lt 0)
-		{
-			arguments.totalRecords = 0;
-		}
-		// perPage less then zero
-		if (arguments.perPage lte 0)
-		{
-			arguments.perPage = 25;
-		}
-		// calculate the total pages the query will have
-		arguments.totalPages = Ceiling(arguments.totalRecords/arguments.perPage);
-		// currentPage shouldn't be less then 1 or greater then the number of pages
-		if (arguments.currentPage gte arguments.totalPages)
-		{
-			arguments.currentPage = arguments.totalPages;
-		}
-		if (arguments.currentPage lt 1)
-		{
-			arguments.currentPage = 1;
-		}
-		// as a convinence for cfquery and cfloop when doing oldschool type pagination
-		// startrow for cfquery and cfloop
-		arguments.startRow = (arguments.currentPage * arguments.perPage) - arguments.perPage + 1;
-		// maxrows for cfquery
-		arguments.maxRows = arguments.perPage;
-		// endrow for cfloop
-		arguments.endRow = arguments.startRow + arguments.perPage;
-		// endRow shouldn't be greater then the totalRecords or less than startRow
-		if (arguments.endRow gte arguments.totalRecords)
-		{
-			arguments.endRow = arguments.totalRecords;
-		}
-		if (arguments.endRow lt arguments.startRow)
-		{
-			arguments.endRow = arguments.startRow;
-		}
-		loc.args = duplicate(arguments);
-		structDelete(loc.args, "handle", false);
-		request.wheels[arguments.handle] = loc.args;
 	</cfscript>
 </cffunction>
