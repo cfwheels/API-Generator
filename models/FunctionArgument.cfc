@@ -1,6 +1,7 @@
 <cfcomponent extends="Model" output="false">
 
 	<!----------------------------------------------------->
+	<!--- Public --->
 	
 	<cffunction name="init" hint="Sets associations and validations.">
 	

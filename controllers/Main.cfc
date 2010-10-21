@@ -32,16 +32,12 @@
 	<cffunction name="generate" hint="Generates documentation.">
 		
 		<cfset var loc = {}>
+		
 		<cfset loc.function = model("function")>
-		<cfset loc.argument = model("functionArgument")>
-		<cfset functions = loc.function.findAll(where="wheelsVersion='#params.version#'")>
 		
 		<!--- Delete all functions for the version --->
-		<cfif functions.RecordCount gt 0>
-			<cfset loc.argument.deleteAll(where="functionId IN (#ValueList(functions.id)#)")>
-			<cfset loc.function.deleteAll(where="id IN (#ValueList(functions.id)#)")>
-			<!--- <cfset loc.functionToDelete.deleteAllRelatedFunctions() --->
-		</cfif>
+		<cfset loc.function.deleteAllForVersion(params.version)>
+		<!--- <cfset loc.functionToDelete.deleteAllRelatedFunctions() --->
 		
 		<!--- Controller functions --->
 		<cfset controllerSavedItems = loc.function.generateFunctionsFromScope(super, params.version)>

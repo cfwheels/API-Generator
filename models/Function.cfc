@@ -8,8 +8,8 @@
 		<!--- Associations --->
 		<cfset hasMany("functionArguments")>
 		<cfset hasMany("relatedFunctions")>
-		<cfset belongsTo(name="parentFunctionSectionId", class="functionSection", foreignKey="parentFunctionSectionId")>
-		<cfset belongsTo(name="childFunctionSectionId", class="functionSection", foreignKey="childFunctionSectionId")>
+		<cfset belongsTo(name="parentFunctionSectionId", modelName="functionSection", foreignKey="parentFunctionSectionId")>
+		<cfset belongsTo(name="childFunctionSectionId", modelName="functionSection", foreignKey="childFunctionSectionId")>
 		
 		<!--- Validations --->
 		<cfset validatesPresenceOf("name,wheelsVersion,returnType,hint,examples")>
@@ -42,6 +42,34 @@
 			</cfif>
 		</cfloop>
 	
+	</cffunction>
+	
+	<!----------------------------------------------------->
+	
+	<cffunction name="deleteAllForVersion" returntype="boolean" hint="Deletes all functions and their arguments for a given Wheels version.">
+		<cfargument name="version" type="string" hint="Version number to delete for.">
+		
+		<cftry>
+			<!--- Delete functions --->
+			<cfquery datasource="#get('dataSourceName')#">
+				DELETE
+					F.*,
+					A.*
+				FROM
+					functions F
+					JOIN functionarguments A
+						ON F.id = A.functionid
+				WHERE
+					F.wheelsversion =
+						<cfqueryparam cfsqltype="cf_sql_varchar" value="#arguments.version#">
+			</cfquery>
+			<cfcatch type="database">
+				<cfreturn false>
+			</cfcatch>
+		</cftry>
+		
+		<cfreturn true>
+		
 	</cffunction>
 	
 	<!----------------------------------------------------->
