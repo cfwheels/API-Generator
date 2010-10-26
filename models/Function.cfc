@@ -3,7 +3,7 @@
 	<!----------------------------------------------------->
 	<!--- Public --->
 	
-	<cffunction name="init" hint="Sets associations, validations, and callbacks.">
+	<cffunction name="init" hint="Defines associations, validations, and callbacks.">
 		
 		<!--- Associations --->
 		<cfset hasMany("functionArguments")>
@@ -20,6 +20,7 @@
 		<cfset beforeValidation("processCategories")>
 		<cfset beforeSave("cleanExamples")>
 		<cfset afterSave("saveArguments")><!---,saveRelatedFunctions--->
+		<cfset beforeDelete("deleteArguments")>
 	
 	</cffunction>
 	
@@ -32,44 +33,14 @@
 		<cfset var functions = "">
 		<cfset loc.parameters = model("functionArgument").findAll(returnAs="objects", reload=true)>
 		<cfset functions = model("function").findAll(where="wheelsVersion='#arguments.version#'", reload=true)>
-		<cfset loc.parametersQuery = model("functionArgument").findAll(where="functionId IN (#ValueList(functions.id)#)", reload=true)>
+		<cfset loc.parametersQuery = model("functionArgument").findAllForVersion(arguments.version)>
 		
 		<!--- Replace "See documentation for @..." references with intended documentation --->
 		<cfloop array="#loc.parameters#" index="loc.parameter">
 			<cfset loc.parameter = cleanHint(loc.parameter, functions, loc.parametersQuery)>
-			<cfif loc.parameter.hasChanged()>
-				<cfset loc.parameter.save()>
-			</cfif>
+			<cfset loc.parameter.save()>
 		</cfloop>
 	
-	</cffunction>
-	
-	<!----------------------------------------------------->
-	
-	<cffunction name="deleteAllForVersion" returntype="boolean" hint="Deletes all functions and their arguments for a given Wheels version.">
-		<cfargument name="version" type="string" hint="Version number to delete for.">
-		
-		<cftry>
-			<!--- Delete functions --->
-			<cfquery datasource="#get('dataSourceName')#">
-				DELETE
-					F.*,
-					A.*
-				FROM
-					functions F
-					JOIN functionarguments A
-						ON F.id = A.functionid
-				WHERE
-					F.wheelsversion =
-						<cfqueryparam cfsqltype="cf_sql_varchar" value="#arguments.version#">
-			</cfquery>
-			<cfcatch type="database">
-				<cfreturn false>
-			</cfcatch>
-		</cftry>
-		
-		<cfreturn true>
-		
 	</cffunction>
 	
 	<!----------------------------------------------------->
@@ -187,6 +158,14 @@
 	
 	<!----------------------------------------------------->
 	
+	<cffunction name="deleteArguments" access="private" hint="Deletes all arguments related to this function.">
+	
+		<cfset this.deleteAllFunctionArguments()>
+	
+	</cffunction>
+	
+	<!----------------------------------------------------->
+	
 	<cffunction name="processCategories" access="private" hint="Processes category slugs at `this.categories` into proper functionSectionIds.">
 	
 		<!--- Parent category --->
@@ -288,7 +267,7 @@
 				FROM
 					arguments.functionsQuery
 				WHERE
-					name = '#loc.referenceFunction#'
+					LOWER(name) = LOWER('#loc.referenceFunction#')
 			</cfquery>
 			<!--- Get reference function's parameter's hint from memory --->
 			<cfif loc.function.RecordCount gt 0>
@@ -305,7 +284,9 @@
 				<cfset arguments.parameter.hint = loc.referenceParameter.hint>
 			<!--- If the hint doesn't exist, then show error --->
 			<cfelse>
-				<cfdump var="No hint to reference.">
+				<cfdump var="No hint to reference for function #loc.referenceFunction#()'s (#loc.function.id#) #arguments.parameter.name# argument.">
+				<cfdump var="#arguments.functionsQuery#">
+				<cfdump var="#arguments.parametersQuery#" abort>
 			</cfif>
 		</cfif>
 		

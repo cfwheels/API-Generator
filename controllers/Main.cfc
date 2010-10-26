@@ -3,10 +3,14 @@
 	<!----------------------------------------------------->
 	<!--- Public --->
 	
-	<cffunction name="init" hint="Defines verifications.">
-	
+	<cffunction name="init" hint="Defines filters and verifications.">
+		
+		<!--- Filters --->
+		<cfset filters(through="cleanVersionKey", only="sql")>
+		
 		<!--- Verifications --->
 		<cfset verifies(only="generate", params="version")>
+		<cfset verifies(only="sql", params="key")>
 	
 	</cffunction>
 	
@@ -36,32 +40,45 @@
 		<cfset loc.function = model("function")>
 		
 		<!--- Delete all functions for the version --->
-		<cfset loc.function.deleteAllForVersion(params.version)>
-		<!--- <cfset loc.functionToDelete.deleteAllRelatedFunctions() --->
+		<cfset loc.allFunctions = loc.function.findAll(where="wheelsVersion='#params.version#'", returnAs="objects")>
+		<cfloop array="#loc.allFunctions#" index="loc.functionToDelete">
+			<cfset loc.functionToDelete.delete()>
+			<!--- <cfset loc.functionToDelete.deleteAllRelatedFunctions() --->
+		</cfloop>
 		
 		<!--- Controller functions --->
 		<cfset controllerSavedItems = loc.function.generateFunctionsFromScope(super, params.version)>
 		<!--- Model functions. The "dummy" model is there so we can import a blank model. --->
 		<cfset modelSavedItems = loc.function.generateFunctionsFromScope(model("dummy"), params.version, controllerSavedItems)>
 		<!--- Clean up argument hint data --->
-		<cfset clean(params.version)>
+		<cfset loc.function.cleanup(params.version)>
 		
 		<cfset numFunctions = loc.function.count(where="wheelsVersion='#params.version#'")>
 		<cfset version = params.version>
 	
 	</cffunction>
 	
+	<!----------------------------------------------------->
+	
+	<cffunction name="sql" hint="Generates SQL for inserting documentation in production database.">
+		
+		<cfset version = params.key>
+		<cfset functions = model("function").findAll(
+			include="functionArguments",
+			where="wheelsVersion='#params.key#'",
+			order="functionarguments.id"
+		)>
+		
+	</cffunction>
+	
 	
 	<!----------------------------------------------------->
-	<!--- Private --->
+	<!--- Filters --->
 	
-	<cffunction name="clean" access="private" hint="Runs clean operation only.">
-		<cfargument name="version" type="string" hint="Version of Wheels.">
-	
-		<cfset var loc = {}>
-		<cfset loc.function = model("function")>
-		<cfset loc.function.cleanup(arguments.version)>
-	
+	<cffunction name="cleanVersionKey" hint="FILTER: Cleans version number stored in `params.key`.">
+		
+		<cfset params.key = Replace(params.key, "-", ".", "all")>
+		
 	</cffunction>
 	
 	<!----------------------------------------------------->
