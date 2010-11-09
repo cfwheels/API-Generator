@@ -9,11 +9,11 @@
 
 <!----------------------------------------------------->
 
-<cffunction name="valueOrNull" returntype="string" hint="Returns the value or `NULL` if it's an empty string.">
+<cffunction name="valueOrNull" returntype="string" hint="Returns the value or `NULL` if it's an empty string. Also takes care of calling `sqlParameterFormat` so you don't need to worry about calling it from the view too.">
 	<cfargument name="value" type="string" hint="Value to inspect.">
 	
 	<cfif Len(arguments.value) gt 0>
-		<cfreturn arguments.value>
+		<cfreturn "'" & sqlParameterFormat(arguments.value) & "'">
 	<cfelse>
 		<cfreturn 'NULL'>
 	</cfif>

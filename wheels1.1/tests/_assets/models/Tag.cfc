@@ -1,8 +1,9 @@
 <cfcomponent extends="Model">
 
 	<cffunction name="init">
-		<cfset beforeCreate("oracleAutoInc")>
 		<cfset beforeSave("callbackThatReturnsTrue")>
+		<cfset property(name="name", label="Tag name")>
+		<cfset property(name="virtual", label="Virtual property")>
 	</cffunction>
 
 	<cffunction name="callbackThatIncreasesVariable">

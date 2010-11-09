@@ -5,15 +5,7 @@
 		<cfargument name="datasource" type="string" required="true">
 		<cfargument name="username" type="string" required="true">
 		<cfargument name="password" type="string" required="true">
-		<cfargument name="info" type="struct" required="true">
-		<cfscript>
-		variables.instance.info = duplicate(arguments.info);
-		StructDelete(arguments, "info", false);
-		variables.instance.connection = {};
-		variables.instance.connection.datasource = arguments.datasource;
-		variables.instance.connection.username = arguments.username;
-		variables.instance.connection.password = arguments.password;
-		</cfscript>
+		<cfset variables.instance.connection = arguments>
 		<cfreturn this>
 	</cffunction>
 
@@ -103,43 +95,27 @@
 		<cfreturn loc.returnValue>
 	</cffunction>
 
-	<cffunction name="$getColumns" returntype="query" access="public" output="false"
-		hint="retrieves all the column information from a table">
+	<cffunction name="$getColumns" returntype="query" access="public" output="false" hint="retrieves all the column information from a table">
 		<cfargument name="tableName" type="string" required="true" hint="the table to retrieve column information for">
 		<cfscript>
-		var loc = {};
-		loc.args = duplicate(variables.instance.connection);
-		loc.args.table = arguments.tableName;
-		loc.args.type = "columns";
-		// The Railo Oracle JDBC driver has a problem where it
-		// quotes tables names. We get around this by upper
-		// casing it
-		if (application.wheels.serverName eq "Railo" && variables.instance.info.driver_name eq "Oracle JDBC driver")
-		{
-			loc.args.table = ucase(loc.args.table);
-		}
-
-		try
-		{
-			if (application.wheels.serverName eq "Adobe ColdFusion" && variables.instance.info.driver_name eq "Oracle JDBC driver")
+			var loc = {};
+			loc.args = duplicate(variables.instance.connection);
+			loc.args.table = arguments.tableName;
+			if (application.wheels.showErrorInformation)
 			{
-				loc.columns = $$dbinfo(argumentCollection=loc.args);
+				try
+				{
+					loc.columns = $getColumnInfo(argumentCollection=loc.args);
+				}
+				catch (Any e)
+				{
+					$throw(type="Wheels.TableNotFound", message="The `#arguments.tableName#` table could not be found in the database.", extendedInfo="Add a table named `#arguments.tableName#` to your database or tell Wheels to use a different table for this model. For example you can tell a `user` model to use a table called `tbl_users` by creating a `User.cfc` file in the `models` folder, creating an `init` method inside it and then calling `table(""tbl_users"")` from within it.");
+				}
 			}
 			else
 			{
-				loc.columns = $dbinfo(argumentCollection=loc.args);
+				loc.columns = $getColumnInfo(argumentCollection=loc.args);
 			}
-		}
-		catch (Any e)
-		{
-			// Oracle driver doesn't throw an error if table isn't found
-			loc.columns = QueryNew("");
-		}
-
-		if (loc.columns.RecordCount eq 0)
-		{
-			$throw(type="Wheels.TableNotFound", message="The `#arguments.tableName#` table could not be found in the database.", extendedInfo="Add a table named `#arguments.tableName#` to your database or tell Wheels to use a different table for this model. For example you can tell a `user` model to use a table called `tbl_users` by creating a `User.cfc` file in the `models` folder, creating an `init` method inside it and then calling `table(""tbl_users"")` from within it.");
-		}
 		</cfscript>
 		<cfreturn loc.columns>
 	</cffunction>
@@ -216,15 +192,24 @@
 		<cfargument name="parameterize" type="boolean" required="true">
 		<cfargument name="limit" type="numeric" required="false" default="0">
 		<cfargument name="offset" type="numeric" required="false" default="0">
+		<cfargument name="connection" type="struct" required="false" default="#variables.instance.connection#">
 		<cfargument name="$primaryKey" type="string" required="false" default="">
 		<cfscript>
 		var loc = {};
 		var query = {};
 
 		loc.returnValue = {};
-		loc.args = duplicate(variables.instance.connection);
+		loc.args = duplicate(arguments.connection);
 		loc.args.result = "loc.result";
 		loc.args.name = "query.name";
+		if (StructKeyExists(loc.args, "username") && !Len(loc.args.username))
+		{
+			StructDelete(loc.args, "username", false);
+		}
+		if (StructKeyExists(loc.args, "password") && !Len(loc.args.password))
+		{
+			StructDelete(loc.args, "password", false);
+		}
 		// set queries in Railo to not preserve single quotes on the entire
 		// cfquery block (we'll handle this individually in the SQL statement instead)
 		if (application.wheels.serverName == "Railo")
@@ -256,6 +241,15 @@
 		loc.returnValue.result = loc.result;
 		</cfscript>
 		<cfreturn loc.returnValue>
+	</cffunction>
+
+	<cffunction name="$getColumnInfo" returntype="query" access="public" output="false">
+		<cfargument name="table" type="string" required="true">
+		<cfargument name="datasource" type="string" required="true">
+		<cfargument name="username" type="string" required="true">
+		<cfargument name="password" type="string" required="true">
+		<cfset arguments.type = "columns">
+		<cfreturn $dbinfo(argumentCollection=arguments)>
 	</cffunction>
 
 </cfcomponent>

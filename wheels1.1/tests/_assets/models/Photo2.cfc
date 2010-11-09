@@ -1,8 +1,9 @@
 <cfcomponent extends="Model">
 
 	<cffunction name="init">
+		<cfset table("photos")>
 		<cfset property(name="DESCRIPTION1", column="description")>
-		<cfset belongsTo(name="gallery", modelName="gallery", foreignKey="id")>
+		<cfset property(name="photoid", column="id")>
 	</cffunction>
 
 </cfcomponent>

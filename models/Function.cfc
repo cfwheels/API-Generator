@@ -6,8 +6,8 @@
 	<cffunction name="init" hint="Defines associations, validations, and callbacks.">
 		
 		<!--- Associations --->
-		<cfset hasMany("functionArguments")>
-		<cfset hasMany("relatedFunctions")>
+		<cfset hasMany(name="functionArguments", joinType="outer")>
+		<cfset hasMany(name="relatedFunctions", joinType="outer")>
 		<cfset belongsTo(name="parentFunctionSectionId", modelName="functionSection", foreignKey="parentFunctionSectionId")>
 		<cfset belongsTo(name="childFunctionSectionId", modelName="functionSection", foreignKey="childFunctionSectionId")>
 		
@@ -152,7 +152,9 @@
 	
 	<cffunction name="cleanExamples" access="private" hint="Cleans up examples data.">
 		
-		<cfset this.examples = Replace(this.examples, Chr(9) & Chr(9), "", "all")>
+		<cfset this.examples = Trim(this.examples)>
+		<cfset this.examples = Replace(this.examples, Chr(13), "", "all")>
+		<cfset this.examples = Replace(this.examples, Chr(10) & Chr(9) & Chr(9), Chr(10), "all")>
 		
 	</cffunction>
 	
@@ -198,8 +200,16 @@
 					<cfif StructKeyExists(loc.parameter, "required")>
 						<cfset loc.argument.required = loc.parameter.required>
 					</cfif>
-					<!--- `default` --->
-					<cfif
+					<!--- `defaultValue` --->
+					<cftry>
+						<cfset loc.tryDefaultValue = get(functionName=this.name, name=loc.parameter.name)>
+						<cfcatch>
+							<cfset loc.tryDefaultValue = "">
+						</cfcatch>
+					</cftry>
+					<cfif Len(loc.tryDefaultValue) gt 0>
+						<cfset loc.argument.defaultValue = loc.tryDefaultValue>
+					<cfelseif
 						StructKeyExists(loc.parameter, "default")
 						and Len(loc.parameter.default) eq 0
 					>
