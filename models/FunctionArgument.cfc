@@ -3,7 +3,10 @@
 	<!----------------------------------------------------->
 	<!--- Public --->
 	
-	<cffunction name="init" hint="Defines associations and validations.">
+	<cffunction name="init" hint="Defines properties, associations, and validations.">
+		
+		<!--- Properties --->
+		<cfset property(name="lookForReference", sql="LEFT(functionarguments.hint, 23)")>
 		
 		<!--- Associations --->
 		<cfset belongsTo("function")>

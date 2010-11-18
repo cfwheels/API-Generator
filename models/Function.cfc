@@ -31,8 +31,16 @@
 		
 		<cfset var loc = {}>
 		<cfset var functions = "">
-		<cfset loc.parameters = model("functionArgument").findAll(returnAs="objects", reload=true)>
-		<cfset functions = model("function").findAll(where="wheelsVersion='#arguments.version#'", reload=true)>
+		<cfset loc.parameters = model("functionArgument").findAll(
+			where="lookForReference='See documentation for @'",
+			returnAs="objects",
+			reload=true
+		)>
+		
+		<cfset functions = model("function").findAll(
+			where="wheelsVersion='#arguments.version#'",
+			reload=true
+		)>
 		<cfset loc.parametersQuery = model("functionArgument").findAllForVersion(arguments.version)>
 		
 		<!--- Replace "See documentation for @..." references with intended documentation --->
@@ -40,7 +48,7 @@
 			<cfset loc.parameter = cleanHint(loc.parameter, functions, loc.parametersQuery)>
 			<cfset loc.parameter.save()>
 		</cfloop>
-	
+			
 	</cffunction>
 	
 	<!----------------------------------------------------->
@@ -267,37 +275,35 @@
 		
 		<cfset var loc = {}>
 		
-		<cfif Left(Trim(arguments.parameter.hint), 23) is "See documentation for @">
-			<cfset loc.referenceFunction = Replace(arguments.parameter.hint, ".", "")>
-			<cfset loc.referenceFunction = Right(loc.referenceFunction, Len(loc.referenceFunction) - 23)>
-			<!--- Get reference function ID from memory --->
-			<cfquery dbtype="query" name="loc.function">
+		<cfset loc.referenceFunction = Replace(arguments.parameter.hint, ".", "")>
+		<cfset loc.referenceFunction = Right(loc.referenceFunction, Len(loc.referenceFunction) - 23)>
+		<!--- Get reference function ID from memory --->
+		<cfquery dbtype="query" name="loc.function">
+			SELECT
+				id
+			FROM
+				arguments.functionsQuery
+			WHERE
+				LOWER(name) = LOWER('#loc.referenceFunction#')
+		</cfquery>
+		<!--- Get reference function's parameter's hint from memory --->
+		<cfif loc.function.RecordCount gt 0>
+			<cfquery dbtype="query" name="loc.referenceParameter">
 				SELECT
-					id
+					hint
 				FROM
-					arguments.functionsQuery
+					arguments.parametersQuery
 				WHERE
-					LOWER(name) = LOWER('#loc.referenceFunction#')
+					name = '#arguments.parameter.name#'
+					AND functionId = #loc.function.id#
 			</cfquery>
-			<!--- Get reference function's parameter's hint from memory --->
-			<cfif loc.function.RecordCount gt 0>
-				<cfquery dbtype="query" name="loc.referenceParameter">
-					SELECT
-						hint
-					FROM
-						arguments.parametersQuery
-					WHERE
-						name = '#arguments.parameter.name#'
-						AND functionId = #loc.function.id#
-				</cfquery>
-				<!--- Update parameter to use hint from reference function's parameter --->
-				<cfset arguments.parameter.hint = loc.referenceParameter.hint>
-			<!--- If the hint doesn't exist, then show error --->
-			<cfelse>
-				<cfdump var="No hint to reference for function #loc.referenceFunction#()'s (#loc.function.id#) #arguments.parameter.name# argument.">
-				<cfdump var="#arguments.functionsQuery#">
-				<cfdump var="#arguments.parametersQuery#" abort>
-			</cfif>
+			<!--- Update parameter to use hint from reference function's parameter --->
+			<cfset arguments.parameter.hint = loc.referenceParameter.hint>
+		<!--- If the hint doesn't exist, then show error --->
+		<cfelse>
+			<cfdump var="No hint to reference for function #loc.referenceFunction#()'s (#loc.function.id#) #arguments.parameter.name# argument.">
+			<cfdump var="#arguments.functionsQuery#">
+			<cfdump var="#arguments.parametersQuery#" abort>
 		</cfif>
 		
 		<cfreturn arguments.parameter>
