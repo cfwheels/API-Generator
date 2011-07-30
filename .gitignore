@@ -13,3 +13,6 @@ stylesheets/bundles
 
 # eclipse project
 .project
+
+# Railo context
+WEB-INF
