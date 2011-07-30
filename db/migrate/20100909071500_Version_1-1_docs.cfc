@@ -6,8 +6,8 @@
 	<cffunction name="up">
 		
 		<!--- Add 1.1 Beta 1 and 1.1 versions --->
-		<cfset addRecord(table="versions", id=19, version="1.1 Beta 1", filename="cfwheels.1.1-beta-1.zip", createdat="2010-09-10", ismajorrelease=0)>
-		<cfset addRecord(table="versions", id=20, version="1.1", filename="cfwheels.1.1.zip", createdat="2010-09-11", ismajorrelease=1)>
+		<cfset addRecord(table="versions", version="1.1 Beta 1", filename="cfwheels.1.1-beta-1.zip", createdat="2010-09-10", ismajorrelease=0)>
+		<cfset addRecord(table="versions", version="1.1", filename="cfwheels.1.1.zip", createdat="2010-09-11", ismajorrelease=1)>
 		
 		<!---  New function sections --->
 		<cfset addRecord(table="functionsections", name="Provides Functions", ordering=1, parentfunctionsectionid=5, slug="provides")>
@@ -33,8 +33,8 @@
 		</cfloop>
 		
 		<!--- New versions --->
-		<cfset removeRecord(table="versions", where="id=19")>
-		<cfset removeRecord(table="versions", where="id=20")>
+		<cfset removeRecord(table="versions", where="version='1.1 Beta 1'")>
+		<cfset removeRecord(table="versions", where="version='1.1'")>
 		
 		<!--- Remove new function sections --->
 		<cfset removeRecord(table="functionsections", where="parentfunctionsectionid=5 AND slug='provides'")>

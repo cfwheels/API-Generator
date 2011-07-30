@@ -6,7 +6,7 @@
 	<cffunction name="up">
 	
 		<!--- Version Data --->
-		<cfset addRecord(table="versions", id=17, version="1.0.4", filename="cfwheels.1.0.4.zip", createdat="2010-04-21")>
+		<cfset addRecord(table="versions", version="1.0.4", filename="cfwheels.1.0.4.zip", createdat="2010-04-21")>
 		
 	</cffunction>
 	
@@ -14,7 +14,7 @@
 	
 	<cffunction name="down">
 	
-		<cfset removeRecord(table="versions", where="id=17")>
+		<cfset removeRecord(table="versions", where="version='1.0.4'")>
 		
 	</cffunction>
 	

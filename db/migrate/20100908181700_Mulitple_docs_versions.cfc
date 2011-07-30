@@ -8,7 +8,7 @@
 		<!--- Major release property in Version --->
 		<cfset addColumn(table="versions", columnName="ismajorrelease", columnType="boolean", default=0, null=false)>
 		<!--- Data --->
-		<cfset updateRecord(table="versions", where="id=13", ismajorrelease=1)>
+		<cfset updateRecord(table="versions", where="version='1.0'", ismajorrelease=1)>
 		
 		<!--- FunctionSectionVersion --->
 		<cfset local.t = createTable(name="functionsectionversions", force=true)>
@@ -16,9 +16,10 @@
 		<cfset local.t.create()>
 		<!--- Data --->
 		<cfset local.functionSections = model("functionSection").findAll(order="id")>
+		<cfset local.version = model("version").findOne(where="version='1.0'")>
 		<cfloop query="local.functionSections">
-			<cfif Len(functionSections.parentFunctionSectionId) eq 0>
-				<cfset addRecord(table="functionsectionversions", functionsectionid=local.functionSections.id, versionid=13)>
+			<cfif Len(local.functionSections.parentFunctionSectionId) eq 0>
+				<cfset addRecord(table="functionsectionversions", functionsectionid=local.functionSections.id, versionid=local.version.id)>
 			</cfif>
 		</cfloop>
 		
