@@ -1,0 +1,189 @@
+<!--
+installing Maven:
+  - on linux: sudo apt-get install maven
+  - other OS: the same as installing CFEclipse plugin on Eclipse IDE
+usage:
+  - Execute "mvn jetty:run" to start the embedded web server 
+    (In Eclipse, Run->Run As->6 Maven build...)
+  - individual tests URL: http://localhost:8080/index.cfm?controller=wheels&action=wheels&view=tests&type=app  
+  - "mvn clean" delete WEB-INF, wheels, and target folder to clean up or free up space. 
+    For example, when you want to upgrade Railo or CFWheels version.
+Note:
+  - Adapt the datasource name inside railo-server.xml, such as: <datasource name="cfwdocs"... 
+
+ -->
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+	<modelVersion>4.0.0</modelVersion>
+	<groupId>net.sidic.cfwheels</groupId>
+	<artifactId>API-Generator</artifactId>
+	<version>1.3.0-SNAPSHOT</version>
+	<packaging>war</packaging>
+	<properties>
+		<!-- embedded CFML and web server version for easy upgrade -->
+		<cfwheelsVersion>1.1.8</cfwheelsVersion>
+		<railoVersion>4.2.1.000</railoVersion>
+		<jettyVersion>8.1.15.v20140411</jettyVersion>
+	</properties>
+	<dependencies>
+		<dependency>
+			<!-- embedded test CFML server runtime -->
+			<groupId>org.getrailo</groupId>
+			<artifactId>railo</artifactId>
+			<version>${railoVersion}</version>
+		</dependency>
+		<dependency>
+			<!-- jdbc database driver, required for railo datasource -->
+			<groupId>mysql</groupId>
+			<artifactId>mysql-connector-java</artifactId>
+			<version>5.1.30</version>
+		</dependency>
+	</dependencies>
+	<build>
+		<extensions>
+			<extension>
+				<!-- required to upload package into remote server -->
+				<groupId>org.apache.maven.wagon</groupId>
+				<artifactId>wagon-ftp</artifactId>
+				<version>2.6</version>
+			</extension>
+		</extensions>
+		<plugins>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-war-plugin</artifactId>
+				<configuration>
+					<!-- web.xml is not necessary for final package, only during testing -->
+					<webXml>src/test/xml/web.dummy.xml</webXml>
+					<webResources>
+						<resource>
+							<!-- the sources are in the root, not under src/main/webapp -->
+							<directory>.</directory>
+							<excludes>
+								<exclude>.settings/**</exclude>
+								<exclude>src/**</exclude>
+								<exclude>target/**</exclude>
+								<exclude>WEB-INF/**</exclude>
+								<exclude>.*</exclude>
+								<exclude>pom.xml</exclude>
+							</excludes>
+						</resource>
+					</webResources>
+					<!-- exclude unnecessary binaries from final package -->
+			        <packagingExcludes>WEB-INF/**</packagingExcludes>
+				</configuration>
+			</plugin>
+			<plugin>
+				<!-- embedded web server for testing -->
+				<groupId>org.mortbay.jetty</groupId>
+				<artifactId>jetty-maven-plugin</artifactId>
+				<version>${jettyVersion}</version>
+				<configuration>
+					<!-- use root source folder. So, file changes can be seen instantly -->
+					<webAppSourceDirectory>.</webAppSourceDirectory>
+					<!-- web.xml required for railo -->
+					<webXml>src/test/xml/web.xml</webXml>
+					<webApp>
+						<!-- the URL context path -->
+						<contextPath>/</contextPath>
+					</webApp>
+					<!-- required to allow stopping the server -->
+					<stopPort>9966</stopPort>
+					<stopKey>STOP</stopKey>
+				</configuration>
+			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-antrun-plugin</artifactId>
+				<version>1.7</version>
+				<executions>
+					<execution>
+						<!-- copy data source and other configuration during test file into local repo -->
+						<id>configure</id>
+						<phase>test</phase>
+						<configuration>
+							<target>
+								<copy file="src/test/xml/railo-server.xml"
+									tofile="${settings.localRepository}/org/getrailo/railo/${railoVersion}/railo-server/context/railo-server.xml"
+									overwrite="true" />
+							</target>
+						</configuration>
+						<goals>
+							<goal>run</goal>
+						</goals>
+					</execution>
+					<execution>
+						<!-- unzip the zip file during pre-package phase -->
+						<id>unzip-cfwheels</id>
+						<phase>prepare-package</phase>
+						<configuration>
+							<target>
+								<unzip src="target/cfwheels.zip" dest="."
+									overwrite="false" />
+							</target>
+						</configuration>
+						<goals>
+							<goal>run</goal>
+						</goals>
+					</execution>
+					<execution>
+						<!-- force clean WEB-INF and wheels because it is outside the automatically clean up target folder-->
+						<id>clean railo runtime</id>
+						<phase>clean</phase>
+						<configuration>
+							<target>
+								<delete dir="WEB-INF"/>
+								<delete dir="wheels"/>
+							</target>
+						</configuration>
+						<goals>
+							<goal>run</goal>
+						</goals>
+					</execution>
+				</executions>
+			</plugin>
+		</plugins>
+	</build>
+	<profiles>
+		<profile>
+			<!-- download specific version of CFWheels framework only if necessary (zip file missing) -->
+			<id>download-cfwheels</id>
+			<activation>
+				<file>
+					<missing>target/cfwheels.zip</missing>
+				</file>
+			</activation>
+			<build>
+				<plugins>
+					<plugin>
+						<groupId>org.codehaus.mojo</groupId>
+						<artifactId>wagon-maven-plugin</artifactId>
+						<version>1.0-beta-5</version>
+						<executions>
+							<execution>
+								<!-- download the zip file during test phase before unzip during pre-package phase -->
+								<id>download-cfwheels</id>
+								<phase>test</phase>
+								<goals>
+									<goal>download-single</goal>
+								</goals>
+								<configuration>
+									<fromFile>cfwheels.${cfwheelsVersion}.zip</fromFile>
+									<url>http://cfwheels.org/files/downloads</url>
+									<toFile>target/cfwheels.zip</toFile>
+								</configuration>
+							</execution>
+						</executions>
+					</plugin>
+				</plugins>
+			</build>
+		</profile>
+	</profiles>
+	<repositories>
+		<repository>
+			<!-- the embedded CFML server only available here to download -->
+			<id>cfmlprojects.org</id>
+			<url>http://cfmlprojects.org/artifacts</url>
+		</repository>
+	</repositories>
+</project>

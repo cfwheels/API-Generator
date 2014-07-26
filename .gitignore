@@ -16,3 +16,11 @@ stylesheets/bundles
 
 # Railo context
 WEB-INF
+/target/
+/.settings/
+/lib/
+/stylesheets/
+/tests/
+/.classpath
+/web.config
+/IsapiRewrite4.ini
