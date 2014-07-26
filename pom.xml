@@ -21,7 +21,7 @@ Note:
 	<packaging>war</packaging>
 	<properties>
 		<!-- embedded CFML and web server version for easy upgrade -->
-		<cfwheelsVersion>1.1.8</cfwheelsVersion>
+		<cfwheelsVersion>master</cfwheelsVersion>
 		<railoVersion>4.2.1.000</railoVersion>
 		<jettyVersion>8.1.15.v20140411</jettyVersion>
 	</properties>
@@ -118,8 +118,11 @@ Note:
 						<phase>prepare-package</phase>
 						<configuration>
 							<target>
-								<unzip src="target/cfwheels.zip" dest="."
+								<unzip src="target/cfwheels.zip" dest="target"
 									overwrite="false" />
+								<copy toDir="." overwrite="false">
+									<fileset dir="target/cfwheels-${cfwheelsVersion}"/>
+								</copy>
 							</target>
 						</configuration>
 						<goals>
@@ -134,6 +137,7 @@ Note:
 							<target>
 								<delete dir="WEB-INF"/>
 								<delete dir="wheels"/>
+								<delete file="root.cfm"/>
 							</target>
 						</configuration>
 						<goals>
@@ -168,8 +172,8 @@ Note:
 									<goal>download-single</goal>
 								</goals>
 								<configuration>
-									<fromFile>cfwheels.${cfwheelsVersion}.zip</fromFile>
-									<url>http://cfwheels.org/files/downloads</url>
+									<fromFile>${cfwheelsVersion}.zip</fromFile>
+									<url>https://github.com/cfwheels/cfwheels/archive</url>
 									<toFile>target/cfwheels.zip</toFile>
 								</configuration>
 							</execution>

@@ -22,6 +22,7 @@
 	<cfargument name="properties" type="struct" required="false" default="#StructNew()#" hint="See documentation for @new.">
 	<cfargument name="parameterize" type="any" required="false" hint="See documentation for @findAll.">
 	<cfargument name="reload" type="boolean" required="false" hint="See documentation for @save.">
+	<cfargument name="validate" type="boolean" required="false" default="true" hint="See documentation for @save.">
 	<cfargument name="transaction" type="string" required="false" default="#application.wheels.transactionMode#" hint="See documentation for @save.">
 	<cfargument name="callbacks" type="boolean" required="false" default="true" hint="See documentation for @save.">
 	<cfscript>
@@ -30,7 +31,7 @@
 		loc.parameterize = arguments.parameterize;
 		StructDelete(arguments, "parameterize");
 		loc.returnValue = new(argumentCollection=arguments);
-		loc.returnValue.save(parameterize=loc.parameterize, reload=arguments.reload, transaction=arguments.transaction, callbacks=arguments.callbacks);
+		loc.returnValue.save(parameterize=loc.parameterize, reload=arguments.reload, validate=arguments.validate, transaction=arguments.transaction, callbacks=arguments.callbacks);
 	</cfscript>
 	<cfreturn loc.returnValue>
 </cffunction>
@@ -206,11 +207,17 @@
 		if (StructKeyExists(loc, "returnValue") && !Len(loc.returnValue))
 		{
 			if (arguments.returnAs == "query")
+			{
 				loc.returnValue = QueryNew("");
+			}
 			else if (singularize(arguments.returnAs) == arguments.returnAs)
+			{
 				loc.returnValue = false;
+			}
 			else
+			{
 				loc.returnValue = ArrayNew(1);
+			}
 		}
 		else if (!StructKeyExists(loc, "returnValue"))
 		{
@@ -229,10 +236,14 @@
 				loc.sql = $addWhereClause(sql=loc.sql, where=loc.originalWhere, include=arguments.include, includeSoftDeletes=arguments.includeSoftDeletes);
 				loc.groupBy = $groupByClause(select=arguments.select, group=arguments.group, include=arguments.include, distinct=arguments.distinct, returnAs=arguments.returnAs);
 				if (Len(loc.groupBy))
+				{
 					ArrayAppend(loc.sql, loc.groupBy);
+				}
 				loc.orderBy = $orderByClause(order=arguments.order, include=arguments.include);
 				if (Len(loc.orderBy))
+				{
 					ArrayAppend(loc.sql, loc.orderBy);
+				}
 				$addToCache(key=loc.queryShellKey, value=loc.sql, category="sql");
 			}
 
@@ -255,7 +266,9 @@
 				loc.finderArgs.offset = arguments.$offset;
 				loc.finderArgs.$primaryKey = primaryKeys();
 				if (application.wheels.cacheQueries && (IsNumeric(arguments.cache) || (IsBoolean(arguments.cache) && arguments.cache)))
+				{
 					loc.finderArgs.cachedWithin = $timeSpanForCache(arguments.cache);
+				}
 				loc.findAll = variables.wheels.class.adapter.$query(argumentCollection=loc.finderArgs);
 				request.wheels[loc.queryKey] = loc.findAll; // <- store in request cache so we never run the exact same query twice in the same request
 			}

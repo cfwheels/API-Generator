@@ -3,7 +3,7 @@
 	<cfset variables.$class = {}>
 	<cfset variables.$class.plugins = {}>
 	<cfset variables.$class.mixins = {}>
-	<cfset variables.$class.mixableComponents = "application,dispatch,controller,model,cache,base,connection,microsoftsqlserver,mysql,oracle,postgresql,h2">
+	<cfset variables.$class.mixableComponents = "application,dispatch,controller,model,base,connection,microsoftsqlserver,mysql,oracle,postgresql,h2,test">
 	<cfset variables.$class.incompatiblePlugins = "">
 	<cfset variables.$class.dependantPlugins = "">
 
@@ -33,7 +33,7 @@
 		<!--- incompatibility --->
 		<cfset $determineIncompatible()>
 		<!--- dependancies --->
-		<cfset $determinDependancy()>
+		<cfset $determineDependancy()>
 
 		<cfreturn this>
 	</cffunction>
@@ -47,10 +47,10 @@
 		
 		<cfloop query="loc.folders">
 			<cfset loc.temp = {}>
-			<cfset loc.temp.name = name>
-			<cfset loc.temp.folderPath = $fullPathToPlugin(lcase(name))>
-			<cfset loc.temp.componentName = lcase(name) & "." & name>
-			<cfset loc.plugins[name] = loc.temp>
+			<cfset loc.temp.name = loc.folders.name>
+			<cfset loc.temp.folderPath = $fullPathToPlugin(loc.folders.name)>
+			<cfset loc.temp.componentName = lcase(loc.folders.name) & "." & loc.folders.name>
+			<cfset loc.plugins[loc.folders.name] = loc.temp>
 		</cfloop>
 		
 		<cfreturn loc.plugins>
@@ -67,8 +67,8 @@
 		<cfloop query="loc.files">
 			<cfset loc.name = ListFirst(name, "-")>
 			<cfset loc.temp = {}>
-			<cfset loc.temp.file = $fullPathToPlugin(name)>
-			<cfset loc.temp.name = name>
+			<cfset loc.temp.file = $fullPathToPlugin(loc.files.name)>
+			<cfset loc.temp.name = loc.files.name>
 			<cfset loc.temp.folderPath = $fullPathToPlugin(loc.name)>
 			<cfset loc.temp.folderExists = directoryExists(loc.temp.folderPath)>
 			<cfset loc.plugins[loc.name] = loc.temp>
@@ -154,7 +154,7 @@
 	</cffunction>
 	
 	
-	<cffunction name="$determinDependancy">
+	<cffunction name="$determineDependancy">
 		<cfset var loc = {}>
 
 		<cfloop collection="#variables.$class.plugins#" item="loc.iPlugins">
@@ -273,7 +273,7 @@
 		
 		<cfdirectory directory="#variables.$class.pluginPathFull#" action="list" filter="*.zip" type="file" sort="name DESC" name="q">
 		<cfquery name="q" dbtype="query">
-		select * from q where name not like '.%'
+		select * from q where name not like '.%' order by name
 		</cfquery>
 		
 		<cfreturn q>

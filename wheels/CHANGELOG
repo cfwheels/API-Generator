@@ -1,4 +1,77 @@
-WHEELS VERSION 1.1.8 (UNRELEASE)
+Edge (07/24/2014)
+
+Model Enhancements
+==================
+
+* Support for tableless models - [Tony Petruzzi]
+* Alias table names using the association name in the "FROM" clause of a query when needed - [James Gibson, Per Djurner]
+* New global "modelRequireInit" setting that you can set to "true" to require an init function specified in all models - [Jonathan Smith]
+* Place surrounding parentheses on calculated properties in "where" and "order by" clauses - [Andy Bellenie, Per Djurner]
+* Check to see if a given primary key already exists before adding it through setPrimaryKey() - [Mark Moran]
+
+View Enhancements
+=================
+
+* Made it possible to set global defaults on autoLink(), excerpt(), wordTruncate() and simpleFormat() - [Chris Peters]
+* Added server host name to debug info and error email - [Colin MacAllister]
+* Made it possible to set a global default for the "twelveHour" argument on date / time helpers - [Per Djurner]
+* Added "prepend / "append" arguments on buttonTag() - [Per Djurner]
+* New "aroundRight" option on the "labelPlacement" argument that places the label text to the right of the form input - [Adam Chapman, Per Djurner]
+* Support for HTML5 "type" argument in form field helpers - [Per Djurner
+* Support for HTML5 boolean attributes - [Per Djurner]
+* Ability to remove media / type attributes when using styleSheetLinkTag and JavaScriptIncludeTag - [Per Djurner]
+* Support for implicit protocol in JavaScriptIncludeTag and styleSheetLinkTag - [Per Djurner]
+* Setting to convert, for example, dataDomCache or data_dom_cache (default) view helper argument names to data-dom-cache attribute names - [Per Djurner]
+* Allow the class attribute for paginationLinks helper anchor tags - [Adam Chapman]
+
+Controller Enhancements
+=======================
+
+* Added the ability to pass through arguments from the view to the data Function in the controller - [Per Djurner]
+* Made setPagination() available from the controller layer - [Per Djurner]
+
+Other Enhancements
+==================
+
+* Fixed issue with double camel-casing of already singular strings [Don Humphreys]
+* Fixes issue with running Wheels with strict scope cascading enabled in Railo - [Jason Weible]
+* Made application start-up thread safe - [Per Djurner]
+* Performance improvement for locking - [Per Djurner]
+* Case insensitive loading of controllers and models - [Per Djurner]
+* Browse test packages for core, app and plugins - [Adam Chapman, Tony Petruzzi]
+* Refactored to avoid a Duplicate() call when sending error email - [Per Djurner]
+
+Bug Fixes
+=========
+
+* Prevent stack overflow error with named arguments on dynamic update - [Tony Petruzzi]
+* Fixes pagination bug when using association methods with a blank "where" clause - [Andy Bellenie]
+* Added missing "validate" argument to create() - [Andy Bellenie]
+* Fixed issue with deleting plugins on case sensitive systems - [Mark Moran]
+* Make sure the latest version of a plugin is unpacked if multiple versions exists - [Tony Petruzzi]
+* Fixed so the "onApplicationEnd" and "onSessionEnd" events pass through the arguments scope [Per Djurner]
+* Fixed so the "onSessionEnd" event fires correctly - #172 [Per Djurner]
+* Fixed race condition issue with caching - [Per Djurner]
+* Added geometry and geography datatypes (SQLServer) - [Simon Allard]
+* Allow blank values to be passed through when validating uniqueness - [Per Djurner]
+* Added work-around for "FastHashRemoved" struct bug found in ColdFusion 8 - [Per Djurner]
+* Removed old bug fix to make redirectTo() respect anchors - [Per Djurner]
+* Correct controller action caching - #153 [Tobias Reiter, Per Djurner]
+* Fix for creating objects from the root folder on Railo 4 - [Jordan Clark, Adam Chapman]
+* Fix for detecting that Microsoft SQL Server is used - [Tony Petruzzi, Adam Chapman]
+* Don't assume null is false for boolean properties - [Adam Chapman]
+* Allow to pass in encoded versions of "&"" and "=" (%26 and %3D) to the params argument - #173 [Mark Gaulin, Per Djurner]
+* Avoid error when the first request to the app is an invalid one - #222 [Maxime de Visscher, Per Djurner]
+* Get the error location from the correct exception struct - #223 [Adam Chapman, Per Djurner]
+* Do not trim primary key values - #213 [Jeremy Keczan, Per Djurner]
+* Incorrect pagination query with Oracle - #93 [crsedgar, Tony Petruzzi, Singgih Cahyono]
+* Repair Oracle test failures #187 (Tony Petruzzi, Singgih Cahyono)
+* Plugins with global mixin are ignored in unit tests - [Singgih Cahyono, Tony Petruzzi]
+* Automatic validation should validate primary key - #143 [Adam Chapman, Tony Petruzzi]
+
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+1.1.8 (05/21/2012)
 
 Model Enhancements
 ==================
@@ -10,25 +83,25 @@ View Enhancements
 
 * Add delimiter parameter to the highlight() function - #826 [Per Djurner, Tony Petruzzi]
 * Use mark tag in highlight - #836 [Per Djurner, Tony Petruzzi]
-* add parameters append and prepend to the submitTag() - #593 [Per Djurner, Tony Petruzzi]
+* Add parameters append and prepend to the submitTag() - #593 [Per Djurner, Tony Petruzzi]
 
 Bug Fixes
 =========
 
 * Turned off URL rewriting in IIS 7 by default - [Per Djurner, Tony Petruzzi]
-* Add CFFileServlet to the pattern list, of the rewrite rules file, to…be able to display an image when using <cfimage action='writeToBrowser'> - [ellor1138]
+* Add CFFileServlet to the pattern list, of the rewrite rules file, to be able to display an image when using <cfimage action='writeToBrowser'> - [ellor1138]
 * radioButtonTag() checked attribute is ignored if value attribute is empty - #733 [Per Djurner, Tony Petruzzi]
 * make cached queries respect the 'maxrows' argument (findAll) - #824 [Per Djurner, Tony Petruzzi]
 
 Other Enhancements
 ==================
 
-* update web.config, htaccess to ignore favicon.ico - [Cathy Shapiro, Tony Petruzzi]
-* route with only format specified was throwing error - [jjallen, Tony Petruzzi]
+* Update web.config, htaccess to ignore favicon.ico - [Cathy Shapiro, Tony Petruzzi]
+* Route with only format specified was throwing error - [jjallen, Tony Petruzzi]
  
 -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-WHEELS VERSION 1.1.7 (12/11/2011)
+1.1.7 (12/11/2011)
 
 Bug Fixes
 =========
@@ -37,7 +110,7 @@ Bug Fixes
 
 -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-WHEELS VERSION 1.1.6 (10/08/2011)
+1.1.6 (10/08/2011)
 
 Model Enhancements
 ==================
@@ -59,30 +132,29 @@ Bug Fixes
 * Pagination clause wasn't enclosed - [Karl Deterville, Tony Petruzzi]
 * Pagination endrow was incorrectly calculated - [Karl Deterville, Tony Petruzzi]
 
-
 -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-WHEELS VERSION 1.1.5 (08/01/2011)
+1.1.5 (08/01/2011)
 
 View Enhancements
 =================
 
-* escape html entities in text and value of select options - #767 [Richard Herbert, Tony Petruzzi]
+* Escape html entities in text and value of select options - #767 [Richard Herbert, Tony Petruzzi]
 
 Bug Fixes
 =========
 
-* Fix plugins not loading when application is in a subdirectory - [mcraig, Tony Petruzzi]
+* Fix plugins not loading when application is in a subdirectory - [Mike Craig, Tony Petruzzi]
 
 -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-WHEELS VERSION 1.1.4 (07/20/2011)
+1.1.4 (07/20/2011)
 
 View Enhancements
 =================
 
 * Allow an array of structs to used for options in selectTag() - [Adam Chapman, Tony Petruzzi]
-* Added secondStep parameter to date/time select tags - [oxalto, Tony Petruzzi]
+* Added secondStep parameter to date/time select tags - [Tom King, Tony Petruzzi]
 
 Controller Enhancements
 =======================
@@ -95,7 +167,6 @@ Model Enhancements
 * Dynamic finders now support passing in an array for values - [Tony Petruzzi]
 * Added the delimiter argument to dynamic finders, this allow you to change the delimiter - [Tony Petruzzi]
 * Added validationTypeForProperty() method - [Tony Petruzzi]
-
 
 Other Enhancements
 ==================
@@ -122,7 +193,7 @@ Bug Fixes
 
 -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-WHEELS VERSION 1.1.3 (03/24/2011)
+1.1.3 (03/24/2011)
 
 View Enhancements
 =================
@@ -151,7 +222,7 @@ Bug Fixes
 
 -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-WHEELS VERSION 1.1.2 (01/29/2011)
+1.1.2 (01/29/2011)
 
 View Enhancements
 =================
@@ -175,7 +246,7 @@ Bug Fixes
 
 -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-WHEELS VERSION 1.1.1
+1.1.1 (11/21/2010)
 
 Bug Fixes
 =========
@@ -191,7 +262,7 @@ Bug Fixes
 
 -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-WHEELS VERSION 1.1 FINAL
+1.1 (11/9/2010)
 
 Bug Fixes
 =========
@@ -205,7 +276,7 @@ Bug Fixes
 
 -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-WHEELS VERSION 1.1 RC 1
+1.1 RC 1 (10/27/2010)
 
 Bug Fixes
 =========
@@ -232,7 +303,7 @@ Miscellaneous
 
 -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-WHEELS VERSION 1.1 BETA 2
+1.1 Beta 2 (10/5/2010)
 
 Bug Fixes
 =========
@@ -263,7 +334,7 @@ Miscellaneous
 
 -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-WHEELS VERSION 1.1 BETA 1
+1.1 Beta 1 (9/10/2010)
 
 Model Enhancements
 ==================
@@ -365,7 +436,7 @@ Miscellaneous
 
 -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-WHEELS VERSION 1.0.5
+1.0.5 (6/18/2010)
 
 Bug Fixes
 =========
@@ -395,7 +466,7 @@ Bug Fixes
 
 -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-WHEELS VERSION 1.0.4
+1.0.4 (4/21/2010)
 
 Bug Fixes
 =========
@@ -412,7 +483,7 @@ Bug Fixes
 
 -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-WHEELS VERSION 1.0.3
+1.0.3 (3/26/2010)
 
 Bug Fixes
 =========
@@ -432,7 +503,7 @@ Bug Fixes
 
 -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-WHEELS VERSION 1.0.2
+1.0.2 (2/19/2010)
 
 Bug Fixes
 =========
@@ -441,7 +512,7 @@ Bug Fixes
 
 -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-WHEELS VERSION 1.0.1
+1.0.1 (2/16/2010)
 
 Bug Fixes
 =========
@@ -474,7 +545,7 @@ Bug Fixes
 
 -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-WHEELS VERSION 1.0 FINAL
+1.0 (11/24/2009)
 
 Model Enhancements
 ==================

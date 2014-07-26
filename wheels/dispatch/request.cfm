@@ -70,17 +70,18 @@
 	<cfargument name="path" type="string" required="true">
 	<cfscript>
 		var loc = {};
-	
 		loc.iEnd = ArrayLen(application.wheels.routes);
 		for (loc.i=1; loc.i <= loc.iEnd; loc.i++)
 		{
 			loc.format = "";
 			loc.route = application.wheels.routes[loc.i];
 			if (StructKeyExists(loc.route, "format"))
+			{
 				loc.format = loc.route.format;
-				
+			}
 			loc.currentRoute = loc.route.pattern;
-			if (loc.currentRoute == "*") {
+			if (loc.currentRoute == "*")
+			{
 				loc.returnValue = loc.route;
 				break;
 			} 
@@ -89,7 +90,7 @@
 				loc.returnValue = loc.route;
 				break;
 			}
-			else if (ListLen(arguments.path, "/") gte ListLen(loc.currentRoute, "/") && loc.currentRoute != "")
+			else if (ListLen(arguments.path, "/") >= ListLen(loc.currentRoute, "/") && loc.currentRoute != "")
 			{
 				loc.match = true;
 				loc.jEnd = ListLen(loc.currentRoute, "/");
@@ -97,15 +98,19 @@
 				{
 					loc.item = ListGetAt(loc.currentRoute, loc.j, "/");
 					loc.thisRoute = ReplaceList(loc.item, "[,]", "");
-					loc.thisURL = ListFirst(ListGetAt(arguments.path, loc.j, "/"), '.');
-					if (Left(loc.item, 1) != "[" && loc.thisRoute != loc.thisURL)
+					loc.thisUrl = ListFirst(ListGetAt(arguments.path, loc.j, "/"), ".");
+					if (Left(loc.item, 1) != "[" && loc.thisRoute != loc.thisUrl)
+					{
 						loc.match = false;
+					}
 				}
 				if (loc.match)
 				{
 					loc.returnValue = loc.route;
 					if (len(loc.format))
 					{
+						// we need to duplicate the route here otherwise we overwrite the one in the application scope
+						loc.returnValue = Duplicate(loc.returnValue);
 						loc.returnValue[ReplaceList(loc.format, "[,]", "")] = $getFormatFromRequest(pathInfo=arguments.path);
 					}
 					break;
@@ -113,7 +118,9 @@
 			}
 		}
 		if (!StructKeyExists(loc, "returnValue"))
+		{
 			$throw(type="Wheels.RouteNotFound", message="Wheels couldn't find a route that matched this request.", extendedInfo="Make sure there is a route setup in your `config/routes.cfm` file that matches the `#arguments.path#` request.");
+		}
 		</cfscript>
 		<cfreturn loc.returnValue>
 </cffunction>
@@ -340,10 +347,6 @@
 					loc.dates[loc.key].hour += 12;
 				}
 			}
-			if (!StructKeyExists(arguments.params, loc.key) || !IsArray(arguments.params[loc.key]))
-			{
-				arguments.params[loc.key] = [];
-			}
 			try
 			{
 				arguments.params[loc.key] = CreateDateTime(loc.dates[loc.key].year, loc.dates[loc.key].month, loc.dates[loc.key].day, loc.dates[loc.key].hour, loc.dates[loc.key].minute, loc.dates[loc.key].second);
@@ -381,7 +384,7 @@
 
 		// filter out illegal characters from the controller and action arguments
 		arguments.params.controller = ReReplace(arguments.params.controller, "[^0-9A-Za-z-_]", "", "all");
-		arguments.params.action = ReReplace(arguments.params.action, "[^0-9A-Za-z-_]", "", "all");
+		arguments.params.action = ReReplace(arguments.params.action, "[^0-9A-Za-z-_\.]", "", "all");
 
 		// convert controller to upperCamelCase and action to normal camelCase
 		arguments.params.controller = REReplace(arguments.params.controller, "(^|-)([a-z])", "\u\2", "all");
