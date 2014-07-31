@@ -5,7 +5,7 @@ installing Maven:
 usage:
   - Execute "mvn jetty:run" to start the embedded web server 
     (In Eclipse, Run->Run As->6 Maven build...)
-  - individual tests URL: http://localhost:8080/index.cfm?controller=wheels&action=wheels&view=tests&type=app  
+  - Main URL: http://localhost:8080/index.cfm/main  
   - "mvn clean" delete WEB-INF, wheels, and target folder to clean up or free up space. 
     For example, when you want to upgrade Railo or CFWheels version.
 Note:
@@ -21,7 +21,7 @@ Note:
 	<packaging>war</packaging>
 	<properties>
 		<!-- embedded CFML and web server version for easy upgrade -->
-		<cfwheelsVersion>master</cfwheelsVersion>
+		<cfwheelsVersion>1.3.0</cfwheelsVersion>
 		<railoVersion>4.2.1.000</railoVersion>
 		<jettyVersion>8.1.15.v20140411</jettyVersion>
 	</properties>
@@ -40,14 +40,6 @@ Note:
 		</dependency>
 	</dependencies>
 	<build>
-		<extensions>
-			<extension>
-				<!-- required to upload package into remote server -->
-				<groupId>org.apache.maven.wagon</groupId>
-				<artifactId>wagon-ftp</artifactId>
-				<version>2.6</version>
-			</extension>
-		</extensions>
 		<plugins>
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
@@ -55,20 +47,6 @@ Note:
 				<configuration>
 					<!-- web.xml is not necessary for final package, only during testing -->
 					<webXml>src/test/xml/web.dummy.xml</webXml>
-					<webResources>
-						<resource>
-							<!-- the sources are in the root, not under src/main/webapp -->
-							<directory>.</directory>
-							<excludes>
-								<exclude>.settings/**</exclude>
-								<exclude>src/**</exclude>
-								<exclude>target/**</exclude>
-								<exclude>WEB-INF/**</exclude>
-								<exclude>.*</exclude>
-								<exclude>pom.xml</exclude>
-							</excludes>
-						</resource>
-					</webResources>
 					<!-- exclude unnecessary binaries from final package -->
 			        <packagingExcludes>WEB-INF/**</packagingExcludes>
 				</configuration>
@@ -118,11 +96,13 @@ Note:
 						<phase>prepare-package</phase>
 						<configuration>
 							<target>
-								<unzip src="target/cfwheels.zip" dest="target"
-									overwrite="false" />
-								<copy toDir="." overwrite="false">
-									<fileset dir="target/cfwheels-${cfwheelsVersion}"/>
-								</copy>
+								<unzip src="../cfwheels-www/files/downloads/cfwheels.${cfwheelsVersion}.zip" dest="."
+									overwrite="false">
+								  <patternset>
+								    <include name="wheels/**"/>
+								    <include name="root.cfm"/>
+								  </patternset>
+  								</unzip>
 							</target>
 						</configuration>
 						<goals>
@@ -148,41 +128,6 @@ Note:
 			</plugin>
 		</plugins>
 	</build>
-	<profiles>
-		<profile>
-			<!-- download specific version of CFWheels framework only if necessary (zip file missing) -->
-			<id>download-cfwheels</id>
-			<activation>
-				<file>
-					<missing>target/cfwheels.zip</missing>
-				</file>
-			</activation>
-			<build>
-				<plugins>
-					<plugin>
-						<groupId>org.codehaus.mojo</groupId>
-						<artifactId>wagon-maven-plugin</artifactId>
-						<version>1.0-beta-5</version>
-						<executions>
-							<execution>
-								<!-- download the zip file during test phase before unzip during pre-package phase -->
-								<id>download-cfwheels</id>
-								<phase>test</phase>
-								<goals>
-									<goal>download-single</goal>
-								</goals>
-								<configuration>
-									<fromFile>${cfwheelsVersion}.zip</fromFile>
-									<url>https://github.com/cfwheels/cfwheels/archive</url>
-									<toFile>target/cfwheels.zip</toFile>
-								</configuration>
-							</execution>
-						</executions>
-					</plugin>
-				</plugins>
-			</build>
-		</profile>
-	</profiles>
 	<repositories>
 		<repository>
 			<!-- the embedded CFML server only available here to download -->

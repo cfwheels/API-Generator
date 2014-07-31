@@ -40,7 +40,7 @@
 		request.cgi = $cgiScope();
 
 		// set up containers for routes, caches, settings etc
-		application.$wheels.version = "";
+		application.$wheels.version = "1.3";
 		application.$wheels.hostName = CreateObject("java", "java.net.InetAddress").getLocalHost().getHostName();
 		application.$wheels.controllers = {};
 		application.$wheels.models = {};
@@ -342,6 +342,20 @@
 		if(application.$wheels.clearQueryCacheOnReload)
 		{
 			$objectcache(action="clear");
+		}
+
+		// add all public controller / view methods to a list of methods that you should not be allowed to call as a controller action from the url
+		loc.allowedGlobalMethods = "get,set,addroute,addDefaultRoutes";
+		loc.protectedControllerMethods = StructKeyList($createObjectFromRoot(path=application.$wheels.controllerPath, fileName="Wheels", method="$initControllerClass"));
+		application.$wheels.protectedControllerMethods = "";
+		loc.iEnd = ListLen(loc.protectedControllerMethods);
+		for (loc.i=1; loc.i <= loc.iEnd; loc.i++)
+		{
+			loc.method = ListGetAt(loc.protectedControllerMethods, loc.i);
+			if (Left(loc.method, 1) != "$" && !ListFindNoCase(loc.allowedGlobalMethods, loc.method))
+			{
+				application.$wheels.protectedControllerMethods = ListAppend(application.$wheels.protectedControllerMethods, loc.method);
+			}
 		}
 
 		// reload the plugins each time we reload the application
