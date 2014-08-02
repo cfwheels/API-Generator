@@ -13,7 +13,7 @@
 <p><strong>Data source:</strong> #dataSourceName#</p>
 
 #startFormTag(action="generate")#
-	#textFieldTag(label="Version: ", name="version")#
+	#textFieldTag(label="Version: ", name="version", value=wheelsMajorVersion)#
 	#submitTag(value="Generate API Docs")#
 #endFormTag()#
 

@@ -7,9 +7,9 @@ It can inspect previous version of wheels as well, provided they are downloaded 
 Installation
 ------------
 
-1.  Deploy this code into the root of a CFML website or use the embedded server by executing "mvn jetty:run" (Maven required).
+1.  Deploy this code into a folder in an CFML website or use the embedded server by executing "mvn jetty:run" (Maven required).
 
-2.  Rename the `wheels1.1` folder to just `wheels`. (If you want to generate for another version of Wheels instead, rename its given folder name in the same manner.)
+2.  Download and replace the `wheels` folder with desired version. Alternatively, if you have "cfwheels-www" project already downloaded next to this project, you can specify the desired wheels version inside pom.xml and execute "mvn clean install" (Maven required)
 
 3.  Setup a data source in the ColdFusion administrator called `cfwdocs`. This application has been tested on MySQL 5.
 
@@ -24,14 +24,14 @@ Running the Generator
 1.  Run the main screen of the API Generator at this URL. (Replace `localhost` with your server's name.):
     > http://localhost:8080/index.cfm/main
 
-2.  Verify that the desired version and data source are displaying at the top of the screen. For "Version," enter the version number that should be represented by the generated documentation (for example, `1.1`). Click the _Generate API Docs_ button. TODO: verify that the desired version must exists in the version table. Throw error otherwise.
+2.  Verify that the desired version and data source are displaying at the top of the screen. For "Version," enter the version number that should be represented by the generated documentation (for example, `1.3`). Click the _Generate API Docs_ button.
 
 3.  The generator may take 30-60 seconds to process. You may need to change your application's timeout temporarily to cater to this, but this should run fine on most non-stressed environments.
 
 4.  A "Generated Functions" screen will appear indicating which functions' docs were generated, whether the data validated, and whether the data was saved successfully. This is useful in debugging the documentation written in the source.
 
-5.  Due to the intensiveness of this process, you now have the option to have the API Generator generate a SQL script to run on your production server (MySQL only). To access the script for 1.1, for example, go to this URL. (Notice that the "dot" in `1.1` has been changed to a hyphen, as in `1-1`.). You can copy the SQL generated on the screen and run on the database directly:
-    > http://localhost:8080/index.cfm/main/sql/1-1
+5.  Due to the intensiveness of this process, you now have the option to have the API Generator generate a SQL script to run on your production server (MySQL only). To access the script for 1.3, for example, go to this URL. (Notice that the "dot" in `1.3` has been changed to a hyphen, as in `1-3`.). You can copy the SQL generated on the screen and run on the database directly:
+    > http://localhost:8080/index.cfm/main/sql/1-3
 
 6. TODO: add query to connect function categories with version
 insert into functionsectionversions (functionsectionid,versionid)
