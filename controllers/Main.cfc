@@ -59,18 +59,6 @@
 		<!--- Clean up argument hint data --->
 		<cfset loc.function.cleanup(params.version)>
 
-		<cfset model("FunctionSectionVersion").deleteAll(where="versionid = #loc.version.id#")>
-		<cfquery datasource="#get('dataSourceName')#" name="sections" >
-			SELECT DISTINCT * FROM
-			(SELECT parentfunctionsectionid id FROM functions WHERE wheelsversion='#params.version#'
-			UNION ALL
-			SELECT childfunctionsectionid id FROM functions WHERE wheelsversion='#params.version#' AND NOT childfunctionsectionid IS NULL) sections
-			ORDER BY id;
-		</cfquery>
-		<cfloop query="#sections#">
-			<cfset model("FunctionSectionVersion").create(functionSectionId=id,versionId=loc.version.id)>
-		</cfloop>
-
 		<cfset numFunctions = loc.function.count(where="wheelsVersion='#params.version#'")>
 		<cfset version = params.version>
 

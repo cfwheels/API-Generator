@@ -24,13 +24,3 @@ DELETE FROM functions WHERE wheelsversion = '#arguments.version#';
 		</cfif>
 	</cfoutput>
 </cfoutput>
-
-<cfoutput>
-delete from functionsectionversions where versionid=(select id from versions where version='#arguments.version#');
-insert into functionsectionversions (functionsectionid,versionid)
-select distinct *, (select id from versions where version='#arguments.version#') from
-(select parentfunctionsectionid from functions where wheelsversion='#arguments.version#'
-union all
-select childfunctionsectionid from functions where wheelsversion='#arguments.version#' and not childfunctionsectionid is null) x
-order by parentfunctionsectionid;
-</cfoutput>
