@@ -36,11 +36,13 @@
 
 	<cffunction name="generate" hint="Generates documentation.">
 
-		<cfif not model("Version").exists(where="version='#params.version#'")>
+		<cfset var loc = {}>
+
+		<cfset loc.version = model("Version").findOneByVersion(params.version)>
+
+		<cfif not IsObject(loc.version)>
 			<cfreturn renderText("Cannot find version #params.version# in versions table")>
 		</cfif>
-
-		<cfset var loc = {}>
 
 		<cfset loc.function = model("function")>
 
@@ -48,7 +50,6 @@
 		<cfset loc.allFunctions = loc.function.findAll(where="wheelsVersion='#params.version#'", returnAs="objects")>
 		<cfloop array="#loc.allFunctions#" index="loc.functionToDelete">
 			<cfset loc.functionToDelete.delete()>
-			<!--- <cfset loc.functionToDelete.deleteAllRelatedFunctions() --->
 		</cfloop>
 
 		<!--- Controller functions --->
@@ -57,6 +58,18 @@
 		<cfset modelSavedItems = loc.function.generateFunctionsFromScope(model("dummy"), params.version, controllerSavedItems)>
 		<!--- Clean up argument hint data --->
 		<cfset loc.function.cleanup(params.version)>
+
+		<cfset model("FunctionSectionVersion").deleteAll(where="versionid = #loc.version.id#")>
+		<cfquery datasource="#get('dataSourceName')#" name="sections" >
+			SELECT DISTINCT * FROM
+			(SELECT parentfunctionsectionid id FROM functions WHERE wheelsversion='#params.version#'
+			UNION ALL
+			SELECT childfunctionsectionid id FROM functions WHERE wheelsversion='#params.version#' AND NOT childfunctionsectionid IS NULL) sections
+			ORDER BY id;
+		</cfquery>
+		<cfloop query="#sections#">
+			<cfset model("FunctionSectionVersion").create(functionSectionId=id,versionId=loc.version.id)>
+		</cfloop>
 
 		<cfset numFunctions = loc.function.count(where="wheelsVersion='#params.version#'")>
 		<cfset version = params.version>

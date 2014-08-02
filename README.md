@@ -33,14 +33,6 @@ Running the Generator
 5.  Due to the intensiveness of this process, you now have the option to have the API Generator generate a SQL script to run on your production server (MySQL only). To access the script for 1.3, for example, go to this URL. (Notice that the "dot" in `1.3` has been changed to a hyphen, as in `1-3`.). You can copy the SQL generated on the screen and run on the database directly:
     > http://localhost:8080/index.cfm/main/sql/1-3
 
-6. TODO: add query to connect function categories with version
-insert into functionsectionversions (functionsectionid,versionid)
-select distinct *, 33 from 
-(select parentfunctionsectionid from functions where wheelsversion='1.3'
-union all
-select childfunctionsectionid from functions where wheelsversion='1.3' and not childfunctionsectionid is null) x
-order by parentfunctionsectionid
-
 Download the API Generator on GitHub
 ------------------------------------
 

@@ -13,9 +13,9 @@ DELETE FROM functions WHERE wheelsversion = '#arguments.version#';
 <cfoutput query="arguments.functions" group="id">
 	INSERT INTO functions (name, wheelsversion, returntype, hint, examples, parentfunctionsectionid, childfunctionsectionid)
 	VALUES ('#arguments.functions.name#', '#arguments.version#', #valueOrNull(arguments.functions.returnType)#, '#sqlParameterFormat(arguments.functions.hint)#', '#sqlParameterFormat(arguments.functions.examples)#', #arguments.functions.parentFunctionSectionId#, #valueOrNull(arguments.functions.childFunctionSectionId)#);
-	
+
 	SELECT @function_id:=id FROM functions ORDER BY id DESC LIMIT 1;
-	
+
 	<!--- INSERT statements for arguments --->
 	<cfoutput>
 		<cfif Len(arguments.functions.functionArgumentName) gt 0>
@@ -23,4 +23,14 @@ DELETE FROM functions WHERE wheelsversion = '#arguments.version#';
 			VALUES(@function_id, '#arguments.functions.functionArgumentName#', '#arguments.functions.type#', #arguments.functions.required#, #valueOrNull(arguments.functions.defaultValue)#, '#sqlParameterFormat(arguments.functions.functionArgumentHint)#');
 		</cfif>
 	</cfoutput>
+</cfoutput>
+
+<cfoutput>
+delete from functionsectionversions where versionid=(select id from versions where version='#arguments.version#');
+insert into functionsectionversions (functionsectionid,versionid)
+select distinct *, (select id from versions where version='#arguments.version#') from
+(select parentfunctionsectionid from functions where wheelsversion='#arguments.version#'
+union all
+select childfunctionsectionid from functions where wheelsversion='#arguments.version#' and not childfunctionsectionid is null) x
+order by parentfunctionsectionid;
 </cfoutput>
