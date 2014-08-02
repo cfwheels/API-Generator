@@ -29,10 +29,15 @@
 		if (StructKeyExists(arguments, "key"))
 		{
 			if (flashKeyExists(key=arguments.key, $flash=$flash))
+			{
 				$flash = $flash[arguments.key];
+			}
 			else
+			{
 				$flash = "";
+			}
 		}
+		
 		// we can just return the flash since it is created at the beginning of the request
 		// this way we always return what is expected - a struct
 		return $flash;
@@ -87,7 +92,7 @@
 		loc.$flash = $readFlash();
 		loc.iEnd = StructCount(arguments);
 		loc.keys = StructKeyList(arguments);
-		for(loc.i=1; loc.i lte loc.iEnd; loc.i++)
+		for(loc.i=1; loc.i <= loc.iEnd; loc.i++)
 		{
 			loc.key = ListGetAt(loc.keys, loc.i);
 			StructInsert(loc.$flash, loc.key, arguments[loc.key], true);
@@ -211,23 +216,21 @@
 	<cfargument name="includeEmptyContainer" type="boolean" required="false" hint="Includes the DIV container even if the flash is empty.">
 	<cfargument name="lowerCaseDynamicClassValues" type="boolean" required="false" hint="Outputs all class attribute values in lower case (except the main one).">
 	<cfscript>
-		// Initialization
 		var loc = {};
 		loc.$flash = $readFlash();
 		loc.returnValue = "";
-
 		$args(name="flashMessages", args=arguments);
 		$combineArguments(args=arguments, combine="keys,key", required=false);
 
 		// If no keys are requested, populate with everything stored in the Flash and sort them
-		if(!StructKeyExists(arguments, "keys"))
+		if (!StructKeyExists(arguments, "keys"))
 		{
 			loc.flashKeys = StructKeyList(loc.$flash);
 			loc.flashKeys = ListSort(loc.flashKeys, "textnocase");
 		}
-		// Otherwise, generate list based on what was passed as `arguments.keys`
 		else
 		{
+			// Otherwise, generate list based on what was passed as "arguments.keys"
 			loc.flashKeys = arguments.keys;
 		}
 
@@ -239,14 +242,16 @@
 			loc.item = ListGetAt(loc.flashKeys, loc.i);
 			loc.class = loc.item & "Message";
 			if (arguments.lowerCaseDynamicClassValues)
+			{
 				loc.class = LCase(loc.class);
+			}
 			loc.attributes = {class=loc.class};
 			if (!StructKeyExists(arguments, "key") || arguments.key == loc.item)
 			{
 				loc.content = loc.$flash[loc.item];
 				if (IsSimpleValue(loc.content))
 				{
-					loc.listItems = loc.listItems & $element(name="p", content=loc.content, attributes=loc.attributes);
+					loc.listItems &= $element(name="p", content=loc.content, attributes=loc.attributes);
 				}
 			}
 		}
@@ -298,13 +303,16 @@
 <cffunction name="$flashClear" returntype="void" access="public" output="false">
 	<cfscript>
 		var loc = {};
+		
 		// only save the old flash if they want to keep anything
 		if (StructKeyExists(request.wheels, "flashKeep"))
 		{
 			loc.$flash = $readFlash();
 		}
+		
 		// clear the current flash
 		flashClear();
+		
 		// see if they wanted to keep anything
 		if (StructKeyExists(loc, "$flash"))
 		{
@@ -319,6 +327,7 @@
 					}
 				}
 			}
+			
 			// write to the flash
 			$writeFlash(loc.$flash);
 		}

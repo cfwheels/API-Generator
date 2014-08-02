@@ -87,8 +87,6 @@
 					loc.item = Trim(ReplaceNoCase(ReplaceNoCase(ReplaceNoCase(ListGetAt(loc.returnValue[ArrayLen(loc.returnValue)], loc.i), "ORDER BY ", ""), " ASC", ""), " DESC", ""));
 					if (!ListFindNoCase(ReplaceNoCase(loc.returnValue[ArrayLen(loc.returnValue)-1], "GROUP BY ", ""), loc.item))
 						loc.returnValue[ArrayLen(loc.returnValue)-1] = ListAppend(loc.returnValue[ArrayLen(loc.returnValue)-1], loc.item);
-					if (!ListFindNoCase(ReplaceNoCase(loc.returnValue[1], "SELECT ", ""), loc.item))
-						loc.returnValue[1] = ListAppend(loc.returnValue[1], loc.item);
 				}
 			}
 		</cfscript>
@@ -240,7 +238,7 @@
 		StructAppend(loc.args, loc.orgArgs, true);
 		</cfscript>
 
-		<cfquery attributeCollection="#loc.args#"><cfloop array="#arguments.sql#" index="loc.i"><cfif IsStruct(loc.i)><cfset loc.queryParamAttributes = $CFQueryParameters(loc.i)><cfif StructKeyExists(loc.queryParamAttributes, "useNull")>NULL<cfelseif StructKeyExists(loc.queryParamAttributes, "list")><cfif arguments.parameterize>(<cfqueryparam attributeCollection="#loc.queryParamAttributes#">)<cfelse>(#PreserveSingleQuotes(loc.i.value)#)</cfif><cfelse><cfif arguments.parameterize><cfqueryparam attributeCollection="#loc.queryParamAttributes#"><cfelse>#$quoteValue(loc.i.value)#</cfif></cfif><cfelse><cfset loc.i = Replace(PreserveSingleQuotes(loc.i), "[[comma]]", ",", "all")>#PreserveSingleQuotes(loc.i)#</cfif>#chr(13)##chr(10)#</cfloop><cfif arguments.limit>LIMIT #arguments.limit#<cfif arguments.offset>#chr(13)##chr(10)#OFFSET #arguments.offset#</cfif></cfif></cfquery>
+		<cfquery attributeCollection="#loc.args#"><cfloop array="#arguments.sql#" index="loc.i"><cfif IsStruct(loc.i)><cfset loc.queryParamAttributes = $CFQueryParameters(loc.i)><cfif StructKeyExists(loc.queryParamAttributes, "useNull")>NULL<cfelseif StructKeyExists(loc.queryParamAttributes, "list")><cfif arguments.parameterize>(<cfqueryparam attributeCollection="#loc.queryParamAttributes#">)<cfelse>(#PreserveSingleQuotes(loc.i.value)#)</cfif><cfelse><cfif arguments.parameterize><cfqueryparam attributeCollection="#loc.queryParamAttributes#"><cfelse>#$quoteValue(str=loc.i.value, sqlType=loc.i.type)#</cfif></cfif><cfelse><cfset loc.i = Replace(PreserveSingleQuotes(loc.i), "[[comma]]", ",", "all")>#PreserveSingleQuotes(loc.i)#</cfif>#chr(13)##chr(10)#</cfloop><cfif arguments.limit>LIMIT #arguments.limit#<cfif arguments.offset>#chr(13)##chr(10)#OFFSET #arguments.offset#</cfif></cfif></cfquery>
 
 		<cfscript>
 		if (StructKeyExists(query, "name"))
@@ -269,13 +267,29 @@
 
 	<cffunction name="$quoteValue" returntype="string" access="public" output="false">
 		<cfargument name="str" type="string" required="true" hint="string to quote">
+		<cfargument name="sqlType" type="string" default="CF_SQL_VARCHAR" hint="sql column type for data">
+		<cfargument name="type" type="string" required="false" hint="validation type for data">
 		<cfscript>
-		if (!IsNumeric(arguments.str))
-		{
+		if (NOT StructKeyExists(arguments, "type"))
+			arguments.type = $getValidationType(arguments.sqlType);
+		if (NOT ListFindNoCase("integer,float,boolean", arguments.type) OR arguments.str EQ "")
 			arguments.str = "'#arguments.str#'";
-		}
 		return arguments.str;
 		</cfscript>
 	</cffunction>
 
+	<cffunction name="$convertMaxRowsToLimit" returntype="struct" access="public" output="false">
+		<cfargument name="argScope" type="struct" required="true">
+		<cfscript>
+		if (StructKeyExists(arguments.argScope, "maxrows") AND arguments.argScope.maxrows gt 0){
+			if (arguments.argScope.maxrows gt 0){
+				arguments.argScope.limit = arguments.argScope.maxrows;
+			}
+			StructDelete(arguments.argScope, "maxrows");
+		}
+		return arguments.argScope;
+		</cfscript>
+	</cffunction>
+
+	<cfinclude template="../../plugins/injection.cfm">
 </cfcomponent>

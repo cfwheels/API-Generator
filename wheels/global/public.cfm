@@ -1,3 +1,196 @@
+<!--- TODO: move setPagination function to controller, it's only here for now to maintain backwards compatibility --->
+<cffunction name="setPagination" access="public" output="false" returntype="void" hint="Allows you to set a pagination handle for a custom query so you can perform pagination on it in your view with `paginationLinks()`."
+	examples=
+	'
+		<!---
+			Note that there are two ways to do pagination yourself using
+			a custom query.
+			
+			1) Do a query that grabs everything that matches and then use
+			the `cfouput` or `cfloop` tag to page through the results.
+				
+			2) Use your database to make 2 queries. The first query
+			basically does a count of the total number of records that match
+			the criteria and the second query actually selects the page of
+			records for retrieval.
+			
+			In the example below, we will show how to write a custom query
+			using both of these methods. Note that the syntax where your
+			database performs the pagination will differ depending on the
+			database engine you are using. Plese consult your database
+			engine''s documentation for the correct syntax.
+				
+			Also note that the view code will differ depending on the method
+			used.
+		--->
+		
+		<!--- 
+			First method: Handle the pagination through your CFML engine
+		--->
+		
+		<!--- Model code --->
+		<!--- In your model (ie. User.cfc), create a custom method for your custom query --->
+		<cffunction name="myCustomQuery">
+			<cfargument name="page" type="numeric">
+			<cfargument name="perPage" type="numeric" required="false" default="25">
+						
+			<cfquery name="local.customQuery" datasource="##get(''dataSourceName'')##">
+				SELECT * FROM users
+			</cfquery>
+
+			<cfset setPagination(totalRecords=local.customQuery.RecordCount, currentPage=arguments.page, perPage=arguments.perPage, handle="myCustomQueryHandle")>
+			<cfreturn customQuery>
+		</cffunction>
+				
+		<!--- Controller code --->
+		<cffunction name="list">
+			<cfparam name="params.page" default="1">
+			<cfparam name="params.perPage" default="25">
+			
+			<cfset allUsers = model("user").myCustomQuery(page=params.page, perPage=params.perPage)>
+			<!--- 
+				Because we''re going to let `cfoutput`/`cfloop` handle the pagination,
+				we''re going to need to get some addition information about the
+				pagination.
+			 --->
+			<cfset paginationData = pagination("myCustomQueryHandle")>
+		</cffunction>
+		
+		<!--- View code (using `cfloop`) --->
+		<!--- Use the information from `paginationData` to page through the records --->
+		<cfoutput>
+		<ul>
+		    <cfloop query="allUsers" startrow="##paginationData.startrow##" endrow="##paginationData.endrow##">
+		        <li>##allUsers.firstName## ##allUsers.lastName##</li>
+		    </cfloop>
+		</ul>
+		##paginationLinks(handle="myCustomQueryHandle")##
+		</cfoutput>
+		
+		<!--- View code (using `cfoutput`) --->
+		<!--- Use the information from `paginationData` to page through the records --->
+		<ul>
+		    <cfoutput query="allUsers" startrow="##paginationData.startrow##" maxrows="##paginationData.maxrows##">
+		        <li>##allUsers.firstName## ##allUsers.lastName##</li>
+		    </cfoutput>
+		</ul>
+		<cfoutput>##paginationLinks(handle="myCustomQueryHandle")##</cfoutput>
+		
+		
+		<!--- 
+			Second method: Handle the pagination through the database
+		--->
+		
+		<!--- Model code --->
+		<!--- In your model (ie. `User.cfc`), create a custom method for your custom query --->
+		<cffunction name="myCustomQuery">
+			<cfargument name="page" type="numeric">
+			<cfargument name="perPage" type="numeric" required="false" default="25">
+			
+			<cfquery name="local.customQueryCount" datasource="##get(''dataSouceName'')##">
+				SELECT COUNT(*) AS theCount FROM users
+			</cfquery>
+						
+			<cfquery name="local.customQuery" datasource="##get(''dataSourceName'')##">
+				SELECT * FROM users
+				LIMIT ##arguments.page## OFFSET ##arguments.perPage##
+			</cfquery>
+			
+			<!--- Notice the we use the value from the first query for `totalRecords`  --->
+			<cfset setPagination(totalRecords=local.customQueryCount.theCount, currentPage=arguments.page, perPage=arguments.perPage, handle="myCustomQueryHandle")>
+			<!--- We return the second query --->
+			<cfreturn customQuery>
+		</cffunction>
+				
+		<!--- Controller code --->
+		<cffunction name="list">
+			<cfparam name="params.page" default="1">
+			<cfparam name="params.perPage" default="25">
+			<cfset allUsers = model("user").myCustomQuery(page=params.page, perPage=params.perPage)>
+		</cffunction>
+		
+		<!--- View code (using `cfloop`) --->
+		<cfoutput>
+		<ul>
+		    <cfloop query="allUsers">
+		        <li>##allUsers.firstName## ##allUsers.lastName##</li>
+		    </cfloop>
+		</ul>
+		##paginationLinks(handle="myCustomQueryHandle")##
+		</cfoutput>
+		
+		<!--- View code (using `cfoutput`) --->
+		<ul>
+		    <cfoutput query="allUsers">
+		        <li>##allUsers.firstName## ##allUsers.lastName##</li>
+		    </cfoutput>
+		</ul>
+		<cfoutput>##paginationLinks(handle="myCustomQueryHandle")##</cfoutput>
+	'
+	categories="model-class,miscellaneous" chapters="getting-paginated-data" functions="findAll,paginationLinks">
+	<cfargument name="totalRecords" type="numeric" required="true" hint="Total count of records that should be represented by the paginated links.">
+	<cfargument name="currentPage" type="numeric" required="false" default="1" hint="Page number that should be represented by the data being fetched and the paginated links.">
+	<cfargument name="perPage" type="numeric" required="false" default="25" hint="Number of records that should be represented on each page of data.">
+	<cfargument name="handle" type="string" required="false" default="query" hint="Name of handle to reference in @paginationLinks.">
+	<cfscript>
+		var loc = {};
+
+		// all numeric values must be integers
+		arguments.totalRecords = fix(arguments.totalRecords);
+		arguments.currentPage = fix(arguments.currentPage);
+		arguments.perPage = fix(arguments.perPage);
+
+		// totalRecords cannot be negative
+		if (arguments.totalRecords lt 0)
+		{
+			arguments.totalRecords = 0;
+		}
+
+		// perPage less then zero
+		if (arguments.perPage lte 0)
+		{
+			arguments.perPage = 25;
+		}
+
+		// calculate the total pages the query will have
+		arguments.totalPages = Ceiling(arguments.totalRecords/arguments.perPage);
+
+		// currentPage shouldn't be less then 1 or greater then the number of pages
+		if (arguments.currentPage gte arguments.totalPages)
+		{
+			arguments.currentPage = arguments.totalPages;
+		}
+		if (arguments.currentPage lt 1)
+		{
+			arguments.currentPage = 1;
+		}
+
+		// as a convinence for cfquery and cfloop when doing oldschool type pagination
+		// startrow for cfquery and cfloop
+		arguments.startRow = (arguments.currentPage * arguments.perPage) - arguments.perPage + 1;
+
+		// maxrows for cfquery
+		arguments.maxRows = arguments.perPage;
+
+		// endrow for cfloop
+		arguments.endRow = (arguments.startRow - 1) + arguments.perPage;
+
+		// endRow shouldn't be greater then the totalRecords or less than startRow
+		if (arguments.endRow gte arguments.totalRecords)
+		{
+			arguments.endRow = arguments.totalRecords;
+		}
+		if (arguments.endRow lt arguments.startRow)
+		{
+			arguments.endRow = arguments.startRow;
+		}
+
+		loc.args = duplicate(arguments);
+		structDelete(loc.args, "handle", false);
+		request.wheels[arguments.handle] = loc.args;
+	</cfscript>
+</cffunction>
+
 <!--- PUBLIC CONFIGURATION FUNCTIONS --->
 
 <cffunction name="addFormat" returntype="void" access="public" output="false" hint="Adds a new MIME format to your Wheels application for use with responding to multiple formats."
@@ -36,12 +229,17 @@
 	<cfargument name="action" type="string" required="false" default="" hint="Action to call when route matches (unless the action name exists in the pattern).">
 	<cfscript>
 		var loc = {};
+		loc.appKey = $appKey();
 
 		// throw errors when controller or action is not passed in as arguments and not included in the pattern
 		if (!Len(arguments.controller) && arguments.pattern Does Not Contain "[controller]")
+		{
 			$throw(type="Wheels.IncorrectArguments", message="The `controller` argument is not passed in or included in the pattern.", extendedInfo="Either pass in the `controller` argument to specifically tell Wheels which controller to call or include it in the pattern to tell Wheels to determine it dynamically on each request based on the incoming URL.");
+		}
 		if (!Len(arguments.action) && arguments.pattern Does Not Contain "[action]")
+		{
 			$throw(type="Wheels.IncorrectArguments", message="The `action` argument is not passed in or included in the pattern.", extendedInfo="Either pass in the `action` argument to specifically tell Wheels which action to call or include it in the pattern to tell Wheels to determine it dynamically on each request based on the incoming URL.");
+		}
 
 		loc.thisRoute = Duplicate(arguments);
 		loc.thisRoute.variables = "";
@@ -55,11 +253,12 @@
 		for (loc.i=1; loc.i <= loc.iEnd; loc.i++)
 		{
 			loc.item = ListGetAt(loc.thisRoute.pattern, loc.i, "/");
-
 			if (REFind("^\[", loc.item))
+			{
 				loc.thisRoute.variables = ListAppend(loc.thisRoute.variables, ReplaceList(loc.item, "[,]", ""));
+			}
 		}
-		ArrayAppend(application.wheels.routes, loc.thisRoute);
+		ArrayAppend(application[loc.appKey].routes, loc.thisRoute);
 	</cfscript>
 </cffunction>
 
@@ -92,19 +291,24 @@
 	categories="configuration" chapters="configuration-and-defaults" functions="get">
 	<cfscript>
 		var loc = {};
+		loc.appKey = $appKey();
 		if (ArrayLen(arguments) > 1)
 		{
 			for (loc.key in arguments)
 			{
 				if (loc.key != "functionName")
-					for (loc.i = 1; loc.i lte listlen(arguments.functionName); loc.i = loc.i + 1) {
-						application.wheels.functions[Trim(ListGetAt(arguments.functionName, loc.i))][loc.key] = arguments[loc.key];
+				{
+					loc.iEnd = ListLen(arguments.functionName);
+					for (loc.i=1; loc.i <= loc.iEnd; loc.i++)
+					{
+						application[loc.appKey].functions[Trim(ListGetAt(arguments.functionName, loc.i))][loc.key] = arguments[loc.key];
 					}
+				}
 			}
 		}
 		else
 		{
-			application.wheels[StructKeyList(arguments)] = arguments[1];
+			application[loc.appKey][StructKeyList(arguments)] = arguments[1];
 		}
 	</cfscript>
 </cffunction>
@@ -188,10 +392,15 @@
 	<cfargument name="functionName" type="string" required="false" default="" hint="Function name to get setting for.">
 	<cfscript>
 		var loc = {};
+		loc.appKey = $appKey();
 		if (Len(arguments.functionName))
-			loc.returnValue = application.wheels.functions[arguments.functionName][arguments.name];
+		{
+			loc.returnValue = application[loc.appKey].functions[arguments.functionName][arguments.name];
+		}
 		else
-			loc.returnValue = application.wheels[arguments.name];
+		{
+			loc.returnValue = application[loc.appKey][arguments.name];
+		}
 	</cfscript>
 	<cfreturn loc.returnValue>
 </cffunction>
@@ -265,7 +474,7 @@
 	<cfargument name="controller" type="string" required="false" default="" hint="Name of the controller to include in the URL.">
 	<cfargument name="action" type="string" required="false" default="" hint="Name of the action to include in the URL.">
 	<cfargument name="key" type="any" required="false" default="" hint="Key(s) to include in the URL.">
-	<cfargument name="params" type="string" required="false" default="" hint="Any additional params to be set in the query string.">
+	<cfargument name="params" type="string" required="false" default="" hint="Any additional parameters to be set in the query string (example: `wheels=cool&x=y`). Please note that Wheels uses the `&` and `=` characters to split the parameters and encode them properly for you (using `URLEncodedFormat()` internally). However, if you need to pass in `&` or `=` as part of the value, then you need to encode them (and only them), example: `a=cats%26dogs%3Dtrouble!&b=1`.">
 	<cfargument name="anchor" type="string" required="false" default="" hint="Sets an anchor name to be appended to the path.">
 	<cfargument name="onlyPath" type="boolean" required="false" hint="If `true`, returns only the relative URL (no protocol, host name or port).">
 	<cfargument name="host" type="string" required="false" hint="Set this to override the current host.">
@@ -396,9 +605,17 @@
 			else
 				loc.returnValue = request.cgi.server_name & loc.returnValue;
 			if (Len(arguments.protocol))
+			{
 				loc.returnValue = arguments.protocol & "://" & loc.returnValue;
+			}
+			else if (request.cgi.server_port_secure)
+			{
+				loc.returnValue = "https://" & loc.returnValue;
+			}
 			else
-				loc.returnValue = SpanExcluding(LCase(request.cgi.server_protocol), "/") & "://" & loc.returnValue;
+			{
+				loc.returnValue = "http://" & loc.returnValue;
+			}
 		}
 	</cfscript>
 	<cfreturn loc.returnValue>
@@ -538,6 +755,9 @@
 		// by default we pluralize/singularize the entire string
 		loc.text = arguments.text;
 
+		// keep track of the success of any rule matches
+		loc.ruleMatched = false;
+
 		// when count is 1 we don't need to pluralize at all so just set the return value to the input string
 		loc.returnValue = loc.text;
 
@@ -555,23 +775,37 @@
 			loc.uncountables = "advice,air,blood,deer,equipment,fish,food,furniture,garbage,graffiti,grass,homework,housework,information,knowledge,luggage,mathematics,meat,milk,money,music,pollution,research,rice,sand,series,sheep,soap,software,species,sugar,traffic,transportation,travel,trash,water,feedback";
 			loc.irregulars = "child,children,foot,feet,man,men,move,moves,person,people,sex,sexes,tooth,teeth,woman,women";
 			if (ListFindNoCase(loc.uncountables, loc.text))
+			{
 				loc.returnValue = loc.text;
+				loc.ruleMatched = true;
+			}
 			else if (ListFindNoCase(loc.irregulars, loc.text))
 			{
 				loc.pos = ListFindNoCase(loc.irregulars, loc.text);
 				if (arguments.which == "singularize" && loc.pos MOD 2 == 0)
+				{
 					loc.returnValue = ListGetAt(loc.irregulars, loc.pos-1);
+				}
 				else if (arguments.which == "pluralize" && loc.pos MOD 2 != 0)
+				{
 					loc.returnValue = ListGetAt(loc.irregulars, loc.pos+1);
+				}
 				else
+				{
 					loc.returnValue = loc.text;
+				}
+				loc.ruleMatched = true;
 			}
 			else
 			{
 				if (arguments.which == "pluralize")
+				{
 					loc.ruleList = "(quiz)$,\1zes,^(ox)$,\1en,([m|l])ouse$,\1ice,(matr|vert|ind)ix|ex$,\1ices,(x|ch|ss|sh)$,\1es,([^aeiouy]|qu)y$,\1ies,(hive)$,\1s,(?:([^f])fe|([lr])f)$,\1\2ves,sis$,ses,([ti])um$,\1a,(buffal|tomat|potat|volcan|her)o$,\1oes,(bu)s$,\1ses,(alias|status)$,\1es,(octop|vir)us$,\1i,(ax|test)is$,\1es,s$,s,$,s";
+				}
 				else if (arguments.which == "singularize")
+				{
 					loc.ruleList = "(quiz)zes$,\1,(matr)ices$,\1ix,(vert|ind)ices$,\1ex,^(ox)en,\1,(alias|status)es$,\1,([octop|vir])i$,\1us,(cris|ax|test)es$,\1is,(shoe)s$,\1,(o)es$,\1,(bus)es$,\1,([m|l])ice$,\1ouse,(x|ch|ss|sh)es$,\1,(m)ovies$,\1ovie,(s)eries$,\1eries,([^aeiouy]|qu)ies$,\1y,([lr])ves$,\1f,(tive)s$,\1,(hive)s$,\1,([^f])ves$,\1fe,(^analy)ses$,\1sis,((a)naly|(b)a|(d)iagno|(p)arenthe|(p)rogno|(s)ynop|(t)he)ses$,\1\2sis,([ti])a$,\1um,(n)ews$,\1ews,(.*)?ss$,\1ss,s$,#Chr(7)#";
+				}
 				loc.rules = ArrayNew(2);
 				loc.count = 1;
 				loc.iEnd = ListLen(loc.ruleList);
@@ -587,21 +821,25 @@
 					if(REFindNoCase(loc.rules[loc.i][1], loc.text))
 					{
 						loc.returnValue = REReplaceNoCase(loc.text, loc.rules[loc.i][1], loc.rules[loc.i][2]);
+						loc.ruleMatched = true;
 						break;
 					}
 				}
 				loc.returnValue = Replace(loc.returnValue, Chr(7), "", "all");
 			}
-
+			
 			// this was a camelCased string and we need to prepend the unchanged part to the result
-			if (StructKeyExists(loc, "prepend"))
+			if (StructKeyExists(loc, "prepend") && loc.ruleMatched)
+			{
 				loc.returnValue = loc.prepend & loc.returnValue;
-
+			}
 		}
 
 		// return the count number in the string (e.g. "5 sites" instead of just "sites")
 		if (arguments.returnCount && arguments.count != -1)
+		{
 			loc.returnValue = LSNumberFormat(arguments.count) & " " & loc.returnValue;
+		}
 	</cfscript>
 	<cfreturn loc.returnValue>
 </cffunction>

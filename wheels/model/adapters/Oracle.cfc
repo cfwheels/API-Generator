@@ -49,13 +49,15 @@
 		<cfargument name="$primaryKey" type="string" required="false" default="">
 		<cfscript>
 			var loc = {};
-
+			arguments = $convertMaxRowsToLimit(arguments);
 			arguments.sql = $removeColumnAliasesInOrderClause(arguments.sql);
 			arguments.sql = $addColumnsToSelectAndGroupBy(arguments.sql);
 			if (arguments.limit > 0)
 			{
-				loc.beforeWhere = "SELECT #arguments.$primaryKey# FROM (SELECT tmp.#arguments.$primaryKey#, rownum rnum FROM (";
-				loc.afterWhere = ") tmp WHERE rownum <=" & arguments.limit+arguments.offset & ")" & " WHERE rnum >" & arguments.offset;
+				loc.select = ReplaceNoCase(ReplaceNoCase(arguments.sql[1], "SELECT DISTINCT ", ""), "SELECT ", "");
+				loc.select = $columnAlias(list=$tableName(list=loc.select, action="remove"), action="keep");
+				loc.beforeWhere = "SELECT #loc.select# FROM (SELECT * FROM (SELECT tmp.*, rownum rnum FROM (";
+				loc.afterWhere = ") tmp WHERE rownum <=" & arguments.limit+arguments.offset & ")" & " WHERE rnum >" & arguments.offset & ")";
 				ArrayPrepend(arguments.sql, loc.beforeWhere);
 				ArrayAppend(arguments.sql, loc.afterWhere);
 			}

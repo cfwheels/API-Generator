@@ -114,7 +114,7 @@
 	'
 		<!--- Basic usage usually involves a `label`, `name`, and `password` --->
 		<cfoutput>
-		    ##textAreaTag(label="Description", name="description", value=params.description)##
+		    ##textAreaTag(label="Description", name="description", content=params.description)##
 		</cfoutput>
 	'
 	categories="view-helper,forms-plain" chapters="form-helpers-and-showing-errors" functions="URLFor,startFormTag,endFormTag,submitTag,textFieldTag,radioButtonTag,checkBoxTag,passwordFieldTag,hiddenFieldTag,fileFieldTag,selectTag,dateTimeSelectTags,dateSelectTags,timeSelectTags">
@@ -166,16 +166,11 @@
 		$args(name="radioButtonTag", args=arguments);
 		arguments.property = arguments.name;
 		arguments.objectName = {};
+		arguments.tagValue = arguments.value;
 		if (arguments.checked)
-		{
 			arguments.objectName[arguments.name] = arguments.value;
-			arguments.tagValue = arguments.value;
-		}
 		else
-		{
-			arguments.objectName[arguments.name] = "";
-			arguments.tagValue = arguments.value;
-		}
+			arguments.objectName[arguments.name] = " "; // space added to allow a blank value while still not having the form control checked
 		StructDelete(arguments, "name");
 		StructDelete(arguments, "value");
 		StructDelete(arguments, "checked");
@@ -226,7 +221,7 @@
 		if (arguments.checked)
 			arguments.objectName[arguments.name] = arguments.value;
 		else
-			arguments.objectName[arguments.name] = "";
+			arguments.objectName[arguments.name] = " "; // space added to allow a blank value while still not having the form control checked
 		if (!StructKeyExists(arguments, "id"))
 		{
 			loc.valueToAppend = LCase(Replace(ReReplaceNoCase(arguments.checkedValue, "[^a-z0-9- ]", "", "all"), " ", "-", "all"));

@@ -66,7 +66,7 @@
 		<cfset functions = model("function").findAll(
 			include="functionArguments",
 			where="functions.wheelsVersion='#params.key#'",
-			order="functionArguments.id"
+			order="functionarguments.id"
 		)>
 		
 	</cffunction>
