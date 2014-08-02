@@ -24,7 +24,7 @@ Running the Generator
 1.  Run the main screen of the API Generator at this URL. (Replace `localhost` with your server's name.):
     > http://localhost:8080/index.cfm/main
 
-2.  Verify that the desired version and data source are displaying at the top of the screen. For "Version," enter the version number that should be represented by the generated documentation (for example, `1.1`). Click the _Generate API Docs_ button.
+2.  Verify that the desired version and data source are displaying at the top of the screen. For "Version," enter the version number that should be represented by the generated documentation (for example, `1.1`). Click the _Generate API Docs_ button. TODO: verify that the desired version must exists in the version table. Throw error otherwise.
 
 3.  The generator may take 30-60 seconds to process. You may need to change your application's timeout temporarily to cater to this, but this should run fine on most non-stressed environments.
 
@@ -32,6 +32,14 @@ Running the Generator
 
 5.  Due to the intensiveness of this process, you now have the option to have the API Generator generate a SQL script to run on your production server (MySQL only). To access the script for 1.1, for example, go to this URL. (Notice that the "dot" in `1.1` has been changed to a hyphen, as in `1-1`.). You can copy the SQL generated on the screen and run on the database directly:
     > http://localhost:8080/index.cfm/main/sql/1-1
+
+6. TODO: add query to connect function categories with version
+insert into functionsectionversions (functionsectionid,versionid)
+select distinct *, 33 from 
+(select parentfunctionsectionid from functions where wheelsversion='1.3'
+union all
+select childfunctionsectionid from functions where wheelsversion='1.3' and not childfunctionsectionid is null) x
+order by parentfunctionsectionid
 
 Download the API Generator on GitHub
 ------------------------------------
