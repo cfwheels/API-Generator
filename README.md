@@ -1,3 +1,5 @@
+## Archived. Functionality now in cfwheels core 
+
 ColdFusion on Wheels API Generator
 ==================================
 
